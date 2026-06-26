@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, UserPlus, ArrowRight, AlertTriangle, Info } from "lucide-react";
 import { createCustomer } from "@/lib/customer";
-import { fetchCustomerFilters } from "@/lib/customers";
+import { fetchCustomerFilters, fetchCustomers } from "@/lib/customers";
 import { getSession } from "@/lib/auth";
 import PlacesAutocompleteInput from "@/components/PlacesAutocompleteInput";
 
@@ -33,6 +33,31 @@ export default function CreateQuotationPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [existInfo, setExistInfo] = useState(null);
+  const [existName, setExistName] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  // The moment the rep finishes the phone field, check if a customer with that
+  // number already exists (read-only search) and surface a link to open them —
+  // same as the old dashboard, but shown immediately instead of only on submit.
+  const checkExisting = async () => {
+    const phone = (form.customer_contact1 || "").trim();
+    if (!/^\d{10}$/.test(phone)) return;
+    setChecking(true);
+    try {
+      const { rows } = await fetchCustomers({ search: phone, length: 5, customer_type: "" });
+      const match = (rows || []).find(
+        (r) => String(r.customer_contact1 || "").replace(/\D/g, "").endsWith(phone)
+      );
+      if (match?.customer_id) {
+        setExistInfo(String(match.customer_id));
+        setExistName(match.customer_name || "");
+      }
+    } catch {
+      /* best-effort; the submit-time check still catches duplicates */
+    } finally {
+      setChecking(false);
+    }
+  };
 
   useEffect(() => {
     const ctrl = new AbortController();
@@ -46,6 +71,7 @@ export default function CreateQuotationPage() {
     setForm((p) => ({ ...p, [k]: v }));
     setError("");
     setExistInfo(null);
+    setExistName("");
   };
 
   const validate = () => {
@@ -134,11 +160,24 @@ export default function CreateQuotationPage() {
               <input
                 value={form.customer_contact1}
                 onChange={(e) => set("customer_contact1", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                onBlur={checkExisting}
                 className={`${inputCls} pl-11`}
                 placeholder="10-digit mobile"
                 inputMode="numeric"
               />
             </div>
+            {checking && (
+              <p className="mt-1 text-xs text-slate-400">Checking for existing customer…</p>
+            )}
+            {existInfo && (
+              <p className="mt-1 text-xs font-semibold text-rose-600">
+                Customer already exists{existName ? ` (${existName})` : ""}.{" "}
+                <a href={appHref(`/customer/${existInfo}`)} className="underline hover:text-rose-700">
+                  Click here
+                </a>{" "}
+                to open.
+              </p>
+            )}
           </Field>
           <Field label="Email">
             <input value={form.customer_email} onChange={(e) => set("customer_email", e.target.value)} className={inputCls} placeholder="name@example.com" type="email" />
