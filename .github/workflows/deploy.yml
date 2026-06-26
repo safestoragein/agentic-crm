@@ -55,7 +55,9 @@ jobs:
           # other server projects — is never read, uploaded, or deleted.
           # Replace the path below with your exact cPanel app root. Keep the
           # trailing slash. Example: /home/safestor/agentic-crm/
-          server-dir: /public_html/agentic-crm/
+          # FTP account is locked to public_html, so this is relative to that.
+          # (Was /public_html/agentic-crm/ which nested into public_html/public_html/agentic-crm.)
+          server-dir: /agentic-crm/
 
           local-dir: ./
 
