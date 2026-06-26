@@ -108,9 +108,10 @@ export default function QuotationDetailPage() {
     const incGst = Math.ceil(base * mf * 1.18);
     const activeCoupon = form?.storage_coupen || q?.storage_coupen || ""; // new overrides existing
     const total = Math.ceil(incGst - couponAmount(activeCoupon, incGst));
+    const month3 = Math.ceil(total * 0.97 * 3);
     const month6 = Math.ceil(total * 0.9 * 6);
     const month12 = Math.ceil(total * 0.8 * 12);
-    return { base, mf, incGst, total, month6, month12 };
+    return { base, mf, incGst, total, month3, month6, month12 };
   }, [form, q]);
 
   // Effective display values: stored (untouched) so the page matches the old
@@ -118,6 +119,7 @@ export default function QuotationDetailPage() {
   const transportTotal = dirty.transport ? transportCalc.total : Math.ceil(num(q?.pickup_charges));
   const transportDue = dirty.transport ? transportCalc.due : Math.ceil(num(q?.transport_due_charges));
   const storageTotal = dirty.storage ? storageCalc.total : Math.ceil(num(q?.total_storage_charges_with_gst));
+  const storageMonth3 = dirty.storage ? storageCalc.month3 : Math.ceil(storageTotal * 0.97 * 3);
   const storageMonth6 = dirty.storage ? storageCalc.month6 : Math.ceil(storageTotal * 0.9 * 6);
   const storageMonth12 = dirty.storage ? storageCalc.month12 : Math.ceil(storageTotal * 0.8 * 12);
 
@@ -295,6 +297,7 @@ export default function QuotationDetailPage() {
                 />
                 <EditRow label="GST (18%)" value="18" readOnly />
                 <EditRow label="Total storage charges" value={storageTotal} readOnly money bold />
+                <EditRow label="3 months storage charges (3% discount)" value={storageMonth3} readOnly money />
                 <EditRow label="6 months storage charges (10% discount)" value={storageMonth6} readOnly money />
                 <EditRow label="12 months storage charges (20% discount)" value={storageMonth12} readOnly money />
                 {q.storage_coupen && (
