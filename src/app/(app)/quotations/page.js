@@ -2,7 +2,7 @@
 import { appHref } from "@/lib/paths";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   Phone,
@@ -102,7 +102,19 @@ export default function QuotationsPage() {
   const [range, setRange] = useState(() => rangeForPreset("today"));
   const [tick, setTick] = useState(0); // forces SLA timers to recompute live
 
-  const handleRange = useCallback((r) => setRange(r), []);
+  // When the user picks a date (Today/Yesterday/All/…), clear any active search
+  // so the date filter actually takes effect. Search spans all dates, so without
+  // this, clicking "Today" would keep showing the all-dates search result. The
+  // ref skips the first call (DateFilter fires onChange once on mount).
+  const rangeTouched = useRef(false);
+  const handleRange = useCallback((r) => {
+    setRange(r);
+    if (rangeTouched.current) {
+      setQuery("");
+      setPage(1);
+    }
+    rangeTouched.current = true;
+  }, []);
 
   // Pre-fill the search from a ?q= param (the top-bar search routes here), so a
   // header search for a phone/name lands on this page already filtered. Also
