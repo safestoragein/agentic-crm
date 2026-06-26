@@ -12,10 +12,20 @@ import AlertCenter from "@/components/AlertCenter";
 export default function TopBar() {
   const router = useRouter();
   const [session, setSession] = useState(null);
+  const [q, setQ] = useState("");
 
   useEffect(() => {
     setSession(getSession());
   }, []);
+
+  // Jump to the Quotations list with the typed term applied. Quotations search
+  // spans the rep's whole history (all dates), so a phone number finds the
+  // customer no matter when they quoted.
+  const runSearch = () => {
+    const term = q.trim();
+    if (!term) return;
+    router.push(`/quotations?q=${encodeURIComponent(term)}`);
+  };
 
   const fname = session?.user_fname || "User";
   const initials = fname.slice(0, 2).toUpperCase();
@@ -28,7 +38,10 @@ export default function TopBar() {
         <div className="relative hidden flex-1 sm:block sm:max-w-lg">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <input
-            placeholder="Search leads, phone, quote #…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }}
+            placeholder="Search customer by name, phone, quote # — press Enter"
             className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
           />
         </div>

@@ -104,6 +104,13 @@ export default function QuotationsPage() {
 
   const handleRange = useCallback((r) => setRange(r), []);
 
+  // Pre-fill the search from a ?q= param (the top-bar search routes here), so a
+  // header search for a phone/name lands on this page already filtered.
+  useEffect(() => {
+    const term = new URLSearchParams(window.location.search).get("q");
+    if (term) setQuery(term);
+  }, []);
+
   // Re-evaluate SLA breaches every 30s (continuous alerting), even without a reload.
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);

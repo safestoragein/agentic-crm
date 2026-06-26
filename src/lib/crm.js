@@ -77,6 +77,9 @@ export function rangeForPreset(preset) {
       const from = ymd(new Date(now.getTime() - 6 * 86400000));
       return { from, to: today, label: "Last 7 days" };
     }
+    case "all":
+      // Whole history — clears the date window so every quotation shows.
+      return { from: "2000-01-01", to: "2999-12-31", label: "All dates" };
     case "month":
     default:
       return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: today, label: "This month" };
