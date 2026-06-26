@@ -311,6 +311,9 @@ export default function QuotationsPage() {
     if (!list) return [];
     const tabDef = TABS.find((t) => t.key === tab) || TABS[0];
     const q = query.trim().toLowerCase();
+    // "All dates" with no search = search-only mode: don't build/sort the whole
+    // history (that's what would make the tab slow). Wait for the user to type.
+    if (range.label === "All dates" && !q) return [];
     // When searching, span ALL tabs AND ALL DATES — match across the rep's
     // whole quotation history (not just the selected date range), so a customer
     // who quoted long ago is still found by name/phone/ID without having to
@@ -353,13 +356,15 @@ export default function QuotationsPage() {
       );
     }
     return [...rows].sort(sorters[sort]);
-  }, [list, inRange, escMap, scoreMap, bookingMap, otpIds, emailStatus, tab, query, city, status, sort]);
+  }, [list, inRange, escMap, scoreMap, bookingMap, otpIds, emailStatus, tab, query, city, status, sort, range]);
 
   // reset page when filters change
   useEffect(() => setPage(1), [tab, query, city, sort, range]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // "All dates" with nothing typed yet → show a search prompt, not the list.
+  const searchOnly = range.label === "All dates" && !query.trim();
 
   return (
     <div className="px-5 py-6">
@@ -530,7 +535,7 @@ export default function QuotationsPage() {
       </div>
 
       {/* Lifecycle colour key (shown once for all cards) */}
-      {list && pageRows.length > 0 && (
+      {list && !searchOnly && pageRows.length > 0 && (
         <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
           <LifecycleLegend />
         </div>
@@ -543,12 +548,18 @@ export default function QuotationsPage() {
             <Loader2 className="mx-auto h-5 w-5 animate-spin text-indigo-500" />
           </div>
         )}
-        {list && pageRows.length === 0 && (
+        {list && searchOnly && (
+          <div className="rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center text-sm text-slate-500">
+            <Search className="mx-auto mb-2 h-5 w-5 text-slate-400" />
+            Type a name, phone number, or quote # above to search across all dates.
+          </div>
+        )}
+        {list && !searchOnly && pageRows.length === 0 && (
           <div className="rounded-xl border border-slate-200 bg-white py-16 text-center text-sm text-slate-400">
             No quotations match this view.
           </div>
         )}
-        {pageRows.map((q) => (
+        {!searchOnly && pageRows.map((q) => (
           <QuoteCard
             key={q.id}
             q={q}
