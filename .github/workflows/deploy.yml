@@ -55,7 +55,7 @@ jobs:
           # other server projects — is never read, uploaded, or deleted.
           # Replace the path below with your exact cPanel app root. Keep the
           # trailing slash. Example: /home/safestor/agentic-crm/
-          server-dir: REPLACE_WITH_YOUR_APP_FOLDER/
+          server-dir: /public_html/agentic-crm/
 
           local-dir: ./
 
