@@ -304,10 +304,12 @@ export default function QuotationsPage() {
     if (!list) return [];
     const tabDef = TABS.find((t) => t.key === tab) || TABS[0];
     const q = query.trim().toLowerCase();
-    // When searching, span ALL tabs — match across the whole in-range set so a
-    // customer is found wherever they sit. Otherwise filter by the active tab.
+    // When searching, span ALL tabs AND ALL DATES — match across the rep's
+    // whole quotation history (not just the selected date range), so a customer
+    // who quoted long ago is still found by name/phone/ID without having to
+    // clear the date filter first. Otherwise filter by the active tab in-range.
     let rows = q
-      ? inRange.filter((r) => matchesQuery(r, q))
+      ? list.filter((r) => matchesQuery(r, q))
       : tabDef.exceptions
         ? inRange.filter((r) => escMap.get(r.id)?.triggers.length)
         : inRange.filter(tabDef.test);
@@ -359,10 +361,17 @@ export default function QuotationsPage() {
           <h1 className="text-xl font-bold tracking-tight">Quotations</h1>
           <p className="mt-0.5 text-sm text-slate-500">
             {list ? (
-              <>
-                <span className="font-medium text-slate-700">{inRange.length}</span> quotations ·{" "}
-                <span className="font-medium text-slate-700">{fmtMoney(pipelineValue)}</span> pipeline · {range.label}
-              </>
+              query.trim() ? (
+                <>
+                  <span className="font-medium text-slate-700">{filtered.length}</span> result{filtered.length === 1 ? "" : "s"} for “{query.trim()}” ·{" "}
+                  <span className="font-medium text-indigo-600">searching all dates</span>
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-slate-700">{inRange.length}</span> quotations ·{" "}
+                  <span className="font-medium text-slate-700">{fmtMoney(pipelineValue)}</span> pipeline · {range.label}
+                </>
+              )
             ) : (
               "Loading…"
             )}
