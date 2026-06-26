@@ -1,0 +1,73 @@
+name: Deploy agentic-crm-site
+
+# Runs on every push to main (and can be run manually from the Actions tab).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never let two deploys run at once.
+concurrency:
+  group: deploy-agentic-crm
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Use the SAME Node major version your cPanel Node.js app is set to,
+      # so the build output is compatible with the server runtime.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+
+      # cPanel/Passenger restarts the app when tmp/restart.txt changes.
+      # Writing a fresh timestamp each run forces a restart after deploy.
+      - name: Create restart trigger
+        run: |
+          mkdir -p tmp
+          date > tmp/restart.txt
+
+      - name: Deploy over FTP (uploads ONLY changed files)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Most cPanel hosts support secure FTPS on port 21. If your host
+          # rejects it, change protocol to "ftp".
+          protocol: ftps
+          port: 21
+
+          # ⚠️⚠️ THE ONLY FOLDER THIS DEPLOY WRITES TO.
+          # Must be THIS app's root folder. Everything outside it — all your
+          # other server projects — is never read, uploaded, or deleted.
+          # Replace the path below with your exact cPanel app root. Keep the
+          # trailing slash. Example: /home/safestor/agentic-crm/
+          server-dir: REPLACE_WITH_YOUR_APP_FOLDER/
+
+          local-dir: ./
+
+          # Never touch these:
+          #  - node_modules: installed once on the server (see setup guide)
+          #  - .env*: secrets live in cPanel, not in the repo
+          #  - .git/.github/build cache: not needed on the server
+          exclude: |
+            **/.git*
+            **/.git*/**
+            .github/**
+            **/node_modules/**
+            **/.env*
+            .next/cache/**
+            Archive.zip

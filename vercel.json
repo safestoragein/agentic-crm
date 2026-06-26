@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/followup/email-fallback",
+      "schedule": "0 14 * * *"
+    }
+  ]
+}
