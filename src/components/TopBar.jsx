@@ -25,6 +25,9 @@ export default function TopBar() {
     const term = q.trim();
     if (!term) return;
     router.push(`/quotations?q=${encodeURIComponent(term)}`);
+    // Also broadcast it, so if we're ALREADY on the Quotations page (no remount
+    // happens) the list still picks up the new term and filters.
+    window.dispatchEvent(new CustomEvent("crm-search", { detail: term }));
   };
 
   const fname = session?.user_fname || "User";
