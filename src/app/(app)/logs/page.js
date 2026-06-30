@@ -17,7 +17,7 @@ import {
   Hourglass,
   Gauge,
 } from "lucide-react";
-import { fetchActivitySummary, fetchActivityLogs } from "@/lib/activity";
+import { fetchActivitySummary, fetchActivityLogs, saveProductivity } from "@/lib/activity";
 import { fetchQuotations } from "@/lib/crm";
 import { getSession } from "@/lib/auth";
 
@@ -157,6 +157,37 @@ export default function ProductivityPage() {
   }, [summary, logs, quotes, date]);
 
   const noData = !loading && summary == null && (logs || []).length === 0;
+
+  // Persist the computed snapshot to ss_crm_productivity_daily whenever a real
+  // day's data is loaded (so login/logout timing + productivity is stored, not
+  // just shown). Fires once per load; skips empty days.
+  useEffect(() => {
+    if (loading || viewUserId == null) return;
+    if (!d.loginAt && !(d.s.actions > 0)) return; // nothing worth storing yet
+    saveProductivity({
+      user_id: viewUserId,
+      user_name: repName,
+      work_date: date,
+      login_at: d.loginAt,
+      logout_at: d.lastLogoutAt,
+      login_count: d.loginCount,
+      first_action_at: d.firstActionAt,
+      last_action_at: d.lastActionAt,
+      active_min: d.s.active_min ?? 0,
+      idle_min: d.s.idle_min ?? 0,
+      longest_idle_min: d.s.longest_idle_min ?? 0,
+      ramp_up_min: d.rampMins,
+      calls: d.s.calls ?? 0,
+      whatsapps: d.s.whatsapps ?? 0,
+      views: d.s.views ?? 0,
+      emails: d.s.emails ?? 0,
+      actions: d.s.actions ?? 0,
+      first_followups: d.fuCount,
+      fast_first_followups: d.fastFu,
+      avg_first_followup_min: d.avgFirstFu,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [d, viewUserId, date, repName, loading]);
 
   return (
     <div className="px-5 py-6">

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Search, LogOut } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/adminAuth";
-import { logEvent } from "@/lib/activity";
+import { logEvent, saveLogoutTime } from "@/lib/activity";
 import AlertCenter from "@/components/AlertCenter";
 
 export default function TopBar() {
@@ -71,6 +71,7 @@ export default function TopBar() {
               <button
                 onClick={() => {
                   logEvent("logout", session?.user_email || "");
+                  saveLogoutTime();
                   clearSession();
                   router.replace("/login");
                 }}

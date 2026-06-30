@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BarChart3, Loader2, AlertTriangle, ArrowUpRight, ArrowDownRight, ExternalLink } from "lucide-react";
 import { fetchBookingReport, rangeForPreset, triggerAutoShareWarehouse } from "@/lib/crm";
 import { fetchCustomerFilters } from "@/lib/customers";
+import { snapshotAllProductivity } from "@/lib/activity";
 import { appHref } from "@/lib/paths";
 import DateFilter from "@/components/DateFilter";
 
@@ -106,6 +107,9 @@ export default function BookingReportPage() {
     // No cron — sweep & send warehouse media (to customers created ~3 min ago,
     // once) whenever this page is opened.
     triggerAutoShareWarehouse();
+    // Persist today's productivity for every active rep into ss_crm_productivity_daily
+    // whenever this team page loads (server recomputes from the activity log + quotes).
+    snapshotAllProductivity({});
   }, []);
 
   // Comparison period = the same number of days immediately before the range.

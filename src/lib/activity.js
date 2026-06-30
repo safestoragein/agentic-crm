@@ -30,6 +30,49 @@ export async function fetchActivityLogs({ userId, type, date, q, limit, signal }
   return res?.data || [];
 }
 
+// Persist a rep's full daily productivity snapshot to ss_crm_productivity_daily.
+// Best-effort: nulls become "" so the backend keeps any existing datetime value.
+export function saveProductivity(snapshot = {}) {
+  if (typeof window === "undefined") return Promise.resolve();
+  const fields = {};
+  for (const [k, v] of Object.entries(snapshot)) fields[k] = v == null ? "" : String(v);
+  return apiPostForm("save_productivity", fields, { module: MOD }).catch(() => {});
+}
+
+// Recompute & persist productivity for ALL reps for a day, server-side. Fired
+// when a team page (booking-report) loads so the rollup stays fresh for everyone.
+export function snapshotAllProductivity({ date } = {}) {
+  if (typeof window === "undefined") return Promise.resolve();
+  const qs = date ? `?date=${encodeURIComponent(date)}` : "";
+  return apiGet(`snapshot_productivity_all${qs}`, { module: MOD }).catch(() => {});
+}
+
+// Stamp the logged-in rep's logout time into the daily rollup at sign-out.
+export function saveLogoutTime() {
+  if (typeof window === "undefined") return Promise.resolve();
+  try {
+    const s = getSession();
+    if (!s?.user_id) return Promise.resolve();
+    const fields = {
+      user_id: s.user_id,
+      user_name: s.user_fname ?? "",
+      work_date: localYmd(),
+      logout_at: localDateTime(),
+    };
+    return apiPostForm("save_logout_time", fields, { module: MOD }).catch(() => {});
+  } catch {
+    return Promise.resolve();
+  }
+}
+
+function localYmd(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function localDateTime(d = new Date()) {
+  return `${localYmd(d)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+}
+
 export function logEvent(eventType, detail = "", meta = {}) {
   if (typeof window === "undefined") return;
   try {
