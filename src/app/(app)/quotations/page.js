@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList } from "lucide-react";
 import { getSession } from "@/lib/auth";
-import { fetchQuotations, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES } from "@/lib/crm";
+import { fetchQuotations, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES, normStatus } from "@/lib/crm";
 
 const SLA_MINUTES = 15; // first-response SLA: contact a new lead within 15 min
 
@@ -341,7 +341,7 @@ export default function QuotationsPage() {
         ? inRange.filter((r) => escMap.get(r.id)?.triggers.length)
         : inRange.filter(tabDef.test);
     if (city) rows = rows.filter((r) => r.city === city);
-    if (status) rows = rows.filter((r) => String(r.status || "").toLowerCase().trim() === status);
+    if (status) rows = rows.filter((r) => normStatus(r.status) === normStatus(status));
     if (sort === "booking") {
       // Highest booking-probability score first.
       return [...rows].sort(

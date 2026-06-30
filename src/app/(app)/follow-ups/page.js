@@ -22,6 +22,7 @@ import { getSession } from "@/lib/auth";
 import {
   fetchFollowupCohort,
   FOLLOWUP_STATUSES,
+  normStatus,
   fetchQuoteEmailStatus,
   fetchOtpVerifiedIds,
   fetchBookingSignals,
@@ -144,7 +145,7 @@ export default function FollowUpsPage() {
     const q = query.trim().toLowerCase();
     return base
       .filter((r) => !city || r.city === city)
-      .filter((r) => !status || String(r.status || "").toLowerCase().trim() === status)
+      .filter((r) => !status || normStatus(r.status) === normStatus(status))
       .filter((r) => !q || matchesQuery(r, q))
       .sort((a, b) => String(b.followDate).localeCompare(String(a.followDate)) || String(a.name).localeCompare(String(b.name)));
   }, [allItems, from, to, city, status, view, query]);
@@ -157,7 +158,7 @@ export default function FollowUpsPage() {
   // Full status list (union of the canonical set + anything present), so the
   // dropdown always offers every option regardless of the current view.
   const statuses = useMemo(() => {
-    const present = allItems.map((r) => String(r.status || "").toLowerCase().trim()).filter(Boolean);
+    const present = allItems.map((r) => normStatus(r.status)).filter(Boolean);
     return [...new Set([...FOLLOWUP_STATUSES, ...present])];
   }, [allItems]);
 
@@ -612,7 +613,7 @@ function bucketCohort(rows) {
   const dueToday = [];
   const upcoming = [];
   for (const r of rows) {
-    if (String(r.status || "").toLowerCase().trim() === "closed") continue;
+    if (normStatus(r.status) === "closed") continue;
     if (!r.followDate) continue;
     const digits = String(r.contact || "").replace(/\D/g, "");
     const contact = digits.length >= 10 ? digits.slice(-10) : digits;

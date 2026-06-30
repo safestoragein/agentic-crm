@@ -8,6 +8,16 @@ import { apiGet, apiPostForm, toList } from "./api";
 
 const DONE_STATES = new Set(["booked", "lost", "invalid", "converted", "won"]);
 
+// Normalizes a follow_up status to a canonical slug so that the stored label form
+// ("Follow Up Needed", "Price Match", "RNR") and the slug form ("follow-up-needed",
+// "price-match", "rnr") compare equal. Use this on BOTH sides of every status match.
+export function normStatus(v) {
+  return String(v || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-");
+}
+
 // All selectable follow_up statuses (the full set the team uses), so the status
 // filter always offers every option, not just the ones present in the data.
 export const FOLLOWUP_STATUSES = [
@@ -121,7 +131,7 @@ export async function fetchFollowupsDueToday(userId, { signal } = {}) {
   );
   return toList(res).filter((r) => {
     const d = String(r.follow_up_date || "").slice(0, 10);
-    const status = String(r.follow_up || "").toLowerCase().trim();
+    const status = normStatus(r.follow_up);
     return d === today && status !== "closed";
   });
 }
@@ -204,7 +214,7 @@ export async function fetchCore(userId, { signal } = {}) {
   // ---- Pipeline by stage (active quotations only) ----
   const stageCounts = {};
   for (const q of quoteList) {
-    if (DONE_STATES.has(String(q.follow_up || "").toLowerCase())) continue;
+    if (DONE_STATES.has(normStatus(q.follow_up))) continue;
     const stage = q.pipeline_stage && q.pipeline_stage.trim() ? q.pipeline_stage.trim() : "Unstaged";
     stageCounts[stage] = (stageCounts[stage] || 0) + 1;
   }
@@ -268,7 +278,7 @@ export async function fetchLeads(userId, { signal } = {}) {
   const overdueLeads = [];
   const dueLeads = [];
   for (const l of mine) {
-    if (DONE_STATES.has(String(l.follow_up || "").toLowerCase())) continue;
+    if (DONE_STATES.has(normStatus(l.follow_up))) continue;
     if (!l.customer_mobile_no) continue;
     const fd = parseDateOnly(l.follow_up_date);
     if (!fd) continue;
@@ -511,7 +521,7 @@ export async function fetchReportList(type, { from, to, city, signal } = {}) {
       .filter(
         (q) =>
           inRange(q.follow_up_date) &&
-          String(q.follow_up || "").toLowerCase().trim() !== "closed" &&
+          normStatus(q.follow_up) !== "closed" &&
           cityOk(q.customer_local_city)
       )
       .map((q) => row(q));
@@ -823,7 +833,7 @@ function mapQuotationRow(q, today) {
       }
     }
 
-    const statusKey = String(q.follow_up || "").toLowerCase();
+    const statusKey = normStatus(q.follow_up);
     const verified = parseDateOnly(q.follow_up_start_time) != null;
 
     // First-response SLA: minutes from customer creation → follow-up start time.

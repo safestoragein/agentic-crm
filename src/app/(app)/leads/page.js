@@ -4,7 +4,7 @@ import { appHref } from "@/lib/paths";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock } from "lucide-react";
 import { getSession } from "@/lib/auth";
-import { ymd } from "@/lib/crm";
+import { ymd, normStatus } from "@/lib/crm";
 import { fetchHouseholdLeads, addHouseholdLead, fetchCrmUsers, transferLeads } from "@/lib/leads";
 import { analyzeSentiment, INTENT_STYLE } from "@/lib/sentiment";
 
@@ -132,7 +132,7 @@ export default function LeadsPage() {
     for (const l of list || []) {
       s.total++;
       if (String(l.verified).toLowerCase() === "yes") s.verified++;
-      const f = String(l.follow_up || "").toLowerCase();
+      const f = normStatus(l.follow_up);
       if (!f) s.new++;
       else if (f === "contacted") s.contacted++;
       else if (f === "rnr-lead") s.rnr++;

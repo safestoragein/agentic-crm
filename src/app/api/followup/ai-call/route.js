@@ -28,7 +28,7 @@ const DEFAULT_MAX_AGE_MINS = 180; // don't cold-call quotes older than this
 const CALL_GAP_MS = 1200; // pace dials so we don't burst the provider
 
 // Follow-up statuses that count as "closed" — never AI-call these.
-const DONE_STATES = new Set(["booked", "won", "converted", "lost", "invalid", "not interested"]);
+const DONE_STATES = new Set(["booked", "won", "converted", "lost", "invalid", "not-interested"]);
 
 function authorized(req) {
   const secret = process.env.CRON_SECRET;
@@ -91,7 +91,7 @@ async function fetchOpenQuotations() {
 // A row breaches if: uncontacted, not closed, created >15 min ago (and within
 // the max-age window so we never cold-call stale quotes).
 function isBreached(q, { maxAgeMins, minValue }) {
-  const statusKey = String(q.follow_up || "").toLowerCase();
+  const statusKey = String(q.follow_up || "").toLowerCase().trim().replace(/\s+/g, "-");
   const contacted = Boolean(q.follow_up) || Boolean(q.follow_up_start_time);
   if (contacted) return false;
   if (DONE_STATES.has(statusKey)) return false;

@@ -2,6 +2,12 @@
 // Pure rules over the data we already have — deterministic, free, explainable.
 
 // ---- helpers ----------------------------------------------------------------
+// Canonical-slug normalization so label form ("RNR Lead") and slug form
+// ("rnr-lead") classify the same. Kept local to keep this file dependency-free.
+function normStatus(v) {
+  return String(v || "").toLowerCase().trim().replace(/\s+/g, "-");
+}
+
 export function callDurationSecs(v) {
   if (v == null || v === "") return 0;
   const s = String(v).trim();
@@ -64,9 +70,9 @@ export function scoreCustomer(c, quotes = []) {
     reasons.push({ text, delta });
   };
 
-  const status = String(c.follow_up || "").toLowerCase();
+  const status = normStatus(c.follow_up);
   const stage = String(c.pipeline_stage || "").toLowerCase();
-  const openQuote = quotes.some((q) => String(q.follow_up || "").toLowerCase() !== "booked" && String(c.is_customer) !== "1");
+  const openQuote = quotes.some((q) => normStatus(q.follow_up) !== "booked" && String(c.is_customer) !== "1");
 
   // intent from status
   if (status === "converted-to-quote") add(25, "Converted to quote — high intent");
@@ -111,7 +117,7 @@ export function scoreCustomer(c, quotes = []) {
 export function auditFollowup(c, quotes = []) {
   if (!c) return { flagged: false, severity: null, issues: [] };
   const issues = [];
-  const status = String(c.follow_up || "").toLowerCase();
+  const status = normStatus(c.follow_up);
   const note = String(c.follow_up_note || "");
   const secs = contactSecs(c, quotes);
   const hasNote = note.trim().length > 0;
