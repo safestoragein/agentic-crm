@@ -427,11 +427,11 @@ function Row({ c, onFollowUp }) {
           <span className="text-xs text-slate-400">—</span>
         )}
       </td>
-      <td className="hidden px-4 py-3 lg:table-cell">
+      <td className="hidden px-4 py-3 lg:table-cell align-top">
         {c.follow_up_note ? (
-          <p className="line-clamp-2 max-w-[220px] text-xs leading-snug text-slate-600" title={c.follow_up_note}>
-            {latestNote(c.follow_up_note)}
-          </p>
+          <div className="max-h-40 max-w-[340px] min-w-[220px] overflow-y-auto whitespace-pre-line break-words text-xs leading-snug text-slate-600">
+            {c.follow_up_note}
+          </div>
         ) : (
           <span className="text-xs text-slate-400">—</span>
         )}
@@ -758,16 +758,6 @@ function statusBadge(s) {
 function prettyWords(s) {
   if (!s) return "—";
   return String(s).replace(/[_-]+/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
-}
-
-// Most recent note line out of the appended, timestamped history blob
-// ("YYYY-MM-DD HH:MM:SS - text\n…") — strips the leading timestamp for display.
-function latestNote(note) {
-  if (!note) return "";
-  const parts = String(note).split("\n").map((s) => s.trim()).filter(Boolean);
-  const last = parts[parts.length - 1] || "";
-  const dash = last.indexOf(" - ");
-  return dash > 0 && dash <= 21 ? last.slice(dash + 3) : last;
 }
 
 // Canonical follow-up slug (e.g. "Follow Up Needed" -> "follow-up-needed"), so the
