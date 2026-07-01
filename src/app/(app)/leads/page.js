@@ -402,10 +402,14 @@ function Row({ l, onFollowUp }) {
           <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">New</span>
         )}
       </td>
-      <td className="hidden px-4 py-3 lg:table-cell">
-        <p className="line-clamp-2 max-w-[240px] text-xs leading-snug text-slate-500" title={l.follow_up_note}>
-          {l.follow_up_note || "—"}
-        </p>
+      <td className="hidden px-4 py-3 align-top lg:table-cell">
+        {l.follow_up_note ? (
+          <div className="max-h-40 min-w-[200px] max-w-[320px] overflow-y-auto whitespace-pre-line break-words rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-xs leading-snug text-slate-700">
+            {l.follow_up_note}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
       </td>
       <td className="hidden px-4 py-3 xl:table-cell">
         <span className="whitespace-nowrap text-xs text-slate-600">{fmtDateTime(l.date)}</span>
