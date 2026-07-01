@@ -6,9 +6,25 @@
 
 import { useEffect } from "react";
 
+function isChunkLoadError(error) {
+  const s = `${error?.name || ""} ${error?.message || ""}`;
+  return /ChunkLoadError|Loading chunk [\w-]+ failed|failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(
+    s
+  );
+}
+
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
     console.error("[agentic-crm] fatal error:", error);
+    // Stale-chunk error after a deploy — reload once (guarded against loops).
+    if (isChunkLoadError(error) && typeof window !== "undefined") {
+      const KEY = "crm_chunk_reload_at";
+      const last = Number(sessionStorage.getItem(KEY) || 0);
+      if (Date.now() - last > 10000) {
+        sessionStorage.setItem(KEY, String(Date.now()));
+        window.location.reload();
+      }
+    }
   }, [error]);
 
   return (

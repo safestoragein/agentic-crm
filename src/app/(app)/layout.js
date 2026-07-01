@@ -20,6 +20,36 @@ export default function AppLayout({ children }) {
     setReady(true);
   }, [router]);
 
+  // Proactively recover from stale-chunk errors after a deploy. A dynamic import
+  // for a re-hashed chunk that no longer exists rejects here (sometimes without
+  // reaching the route error boundary), so reload once to fetch the fresh build.
+  useEffect(() => {
+    const looksLikeChunkError = (msg) =>
+      /ChunkLoadError|Loading chunk [\w-]+ failed|failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(
+        String(msg || "")
+      );
+    const reloadOnce = () => {
+      const KEY = "crm_chunk_reload_at";
+      const last = Number(sessionStorage.getItem(KEY) || 0);
+      if (Date.now() - last > 10000) {
+        sessionStorage.setItem(KEY, String(Date.now()));
+        window.location.reload();
+      }
+    };
+    const onError = (e) => {
+      if (looksLikeChunkError(e?.message) || looksLikeChunkError(e?.error?.message)) reloadOnce();
+    };
+    const onRejection = (e) => {
+      if (looksLikeChunkError(e?.reason?.message) || looksLikeChunkError(e?.reason)) reloadOnce();
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onRejection);
+    };
+  }, []);
+
   // Log only MEANINGFUL work actions — calls, WhatsApp, customer opens, emails.
   // No page views / generic clicks (that's noise; this is productivity data).
   useEffect(() => {

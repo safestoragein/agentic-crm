@@ -7,11 +7,47 @@
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
+// A stale-chunk error happens right after a deploy: the browser still has the
+// old page loaded and asks for a JS chunk whose hashed filename no longer exists
+// on the server. The fix is simply to reload once so it fetches the fresh build.
+function isChunkLoadError(error) {
+  const s = `${error?.name || ""} ${error?.message || ""}`;
+  return /ChunkLoadError|Loading chunk [\w-]+ failed|failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed/i.test(
+    s
+  );
+}
+
 export default function AppError({ error, reset }) {
+  const chunkError = isChunkLoadError(error);
+
   useEffect(() => {
     // Surface to the console so it's visible in remote debugging.
     console.error("[agentic-crm] screen error:", error);
-  }, [error]);
+
+    // Auto-recover from stale-chunk errors by reloading once. A short-lived
+    // sessionStorage guard prevents an endless reload loop if the reload doesn't
+    // resolve it (e.g. the chunk is genuinely missing).
+    if (chunkError && typeof window !== "undefined") {
+      const KEY = "crm_chunk_reload_at";
+      const last = Number(sessionStorage.getItem(KEY) || 0);
+      if (Date.now() - last > 10000) {
+        sessionStorage.setItem(KEY, String(Date.now()));
+        window.location.reload();
+      }
+    }
+  }, [error, chunkError]);
+
+  // While the reload is kicking in, show a neutral spinner instead of the scary
+  // error card (the page is about to refresh anyway).
+  if (chunkError) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center p-6">
+        <div className="flex items-center gap-3 text-sm font-semibold text-slate-500">
+          <RefreshCw className="h-5 w-5 animate-spin text-indigo-500" /> Updating to the latest version…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center p-6">
