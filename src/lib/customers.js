@@ -40,3 +40,18 @@ export async function fetchCustomerFilters({ signal } = {}) {
   const p = await apiGet("get_customer_list_filters", { signal, module: MOD });
   return p?.data || { cities: [], crm_users: [] };
 }
+
+// Lightweight follow-up save for a customer row — updates only follow_up,
+// follow_up_date and (appends) follow_up_note. Backed by agentic_crm/update_customer_follow_up,
+// which won't clobber pipeline_stage / contact_method. Returns true on success.
+export async function updateCustomerFollowUp(
+  { customerId, followUp, followUpDate, followUpNote },
+  { signal } = {}
+) {
+  const fields = { customer_id: customerId };
+  if (followUp != null) fields.follow_up = followUp;
+  if (followUpDate != null) fields.follow_up_date = followUpDate;
+  if (followUpNote != null) fields.follow_up_note = followUpNote;
+  const res = await apiPostForm("update_customer_follow_up", fields, { signal, module: MOD });
+  return res?.status === "success" || res?.status === true;
+}
