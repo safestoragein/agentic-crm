@@ -20,7 +20,7 @@ import {
   Eye,
   Plus,
 } from "lucide-react";
-import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList, CalendarClock, StickyNote } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList, CalendarClock, StickyNote, UserRound } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { fetchQuotations, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES, normStatus } from "@/lib/crm";
 
@@ -772,6 +772,14 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
               )}
               <span>·</span>
               <span>{fmtDateTime(q.createdAt)}</span>
+              {q.rep && (
+                <>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1 font-medium text-slate-600" title="Relationship manager">
+                    <UserRound className="h-3 w-3 text-indigo-400" /> {q.rep}
+                  </span>
+                </>
+              )}
             </div>
             {(q.city || q.pickupAddress) && (
               <div className="mt-1 flex items-start gap-1 text-[11px] text-slate-500">

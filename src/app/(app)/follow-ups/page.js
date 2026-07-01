@@ -585,6 +585,7 @@ function Row({ r, onLogActivity, onQuickFollowUp }) {
               {r.contact && <span className="tabular-nums">+91 {r.contact}</span>}
               {r.email && <span className="truncate">{r.email}</span>}
               {r.city && <span className="capitalize">· {r.city}</span>}
+              {r.rep && <span className="text-slate-400">· {r.rep}</span>}
             </div>
           </div>
         </div>
@@ -670,6 +671,7 @@ function bucketCohort(rows) {
       callDuration: r.callDuration || "",
       hasCallTimes: Boolean(r.hasCallTimes),
       followDate: r.followDate,
+      rep: r.rep || "",
     };
     if (r.bucket === "overdue") overdue.push({ ...item, overdueDays: r.overdueDays, bucket: "overdue" });
     else if (r.bucket === "today") dueToday.push({ ...item, bucket: "today" });
@@ -703,6 +705,7 @@ function bucketLeads(leads) {
       status: l.follow_up || "",
       note: l.follow_up_note || "",
       followDate: fd,
+      rep: `${l.user_fname || ""} ${l.user_lname || ""}`.trim(),
     };
     const delta = daysBetween(fd, today);
     if (delta > 0) overdue.push({ ...item, overdueDays: delta, bucket: "overdue" });

@@ -12,6 +12,7 @@ import {
   StickyNote,
   CalendarClock,
   MapPin,
+  UserRound,
 } from "lucide-react";
 import { ShieldAlert, ShieldCheck, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList } from "lucide-react";
 import { appHref } from "@/lib/paths";
@@ -112,6 +113,14 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
               )}
               <span>·</span>
               <span>{fmtDateTime(q.createdAt)}</span>
+              {q.rep && (
+                <>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1 font-medium text-slate-600" title="Relationship manager">
+                    <UserRound className="h-3 w-3 text-indigo-400" /> {q.rep}
+                  </span>
+                </>
+              )}
             </div>
             {(q.city || q.pickupAddress) && (
               <div className="mt-1 flex items-start gap-1 text-[11px] text-slate-500">
