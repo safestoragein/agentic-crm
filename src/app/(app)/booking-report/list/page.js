@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Phone, MessageCircle, Mail, Filter, MapPin, Users, CalendarClock } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, MessageCircle, Mail, Filter, MapPin, Users, CalendarClock, UserRound } from "lucide-react";
 import {
   fetchReportListExact,
   fetchQuoteEmailStatus,
@@ -348,7 +348,11 @@ function ListRow({ r, onFollowUp }) {
           {r.city && <span className="capitalize">· {r.city}</span>}
           {r.status && <span className="font-semibold text-amber-600">· {prettyStatus(r.status)}</span>}
           {r.followDate && <span>· F/U {String(r.followDate).slice(0, 10)}</span>}
-          {r.rep && <span className="text-slate-400">· {r.rep}</span>}
+          {r.rep && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700" title="CRM user · relationship manager">
+              <UserRound className="h-2.5 w-2.5" /> {r.rep}
+            </span>
+          )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">

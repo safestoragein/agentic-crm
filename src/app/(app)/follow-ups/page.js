@@ -4,6 +4,7 @@ import { appHref } from "@/lib/paths";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
+  UserRound,
   Loader2,
   RefreshCw,
   Phone,
@@ -585,7 +586,11 @@ function Row({ r, onLogActivity, onQuickFollowUp }) {
               {r.contact && <span className="tabular-nums">+91 {r.contact}</span>}
               {r.email && <span className="truncate">{r.email}</span>}
               {r.city && <span className="capitalize">· {r.city}</span>}
-              {r.rep && <span className="text-slate-400">· {r.rep}</span>}
+              {r.rep && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700" title="CRM user · relationship manager">
+                  <UserRound className="h-2.5 w-2.5" /> {r.rep}
+                </span>
+              )}
             </div>
           </div>
         </div>

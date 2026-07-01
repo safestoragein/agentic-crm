@@ -773,12 +773,9 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
               <span>·</span>
               <span>{fmtDateTime(q.createdAt)}</span>
               {q.rep && (
-                <>
-                  <span>·</span>
-                  <span className="inline-flex items-center gap-1 font-medium text-slate-600" title="Relationship manager">
-                    <UserRound className="h-3 w-3 text-indigo-400" /> {q.rep}
-                  </span>
-                </>
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700" title="CRM user · relationship manager">
+                  <UserRound className="h-3 w-3" /> {q.rep}
+                </span>
               )}
             </div>
             {(q.city || q.pickupAddress) && (

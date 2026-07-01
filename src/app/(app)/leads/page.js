@@ -2,7 +2,7 @@
 import { appHref } from "@/lib/paths";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock, AlertTriangle, CalendarDays } from "lucide-react";
+import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock, AlertTriangle, CalendarDays, UserRound } from "lucide-react";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { getSession } from "@/lib/auth";
 import { ymd, normStatus } from "@/lib/crm";
@@ -371,7 +371,9 @@ function Row({ l, onFollowUp }) {
               {l.customer_email && <span className="truncate">{l.customer_email}</span>}
               {l.customer_local_city && <span className="capitalize">· {l.customer_local_city}</span>}
               {(l.user_fname || l.user_lname) && (
-                <span className="text-slate-400">· {`${l.user_fname || ""} ${l.user_lname || ""}`.trim()}</span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700" title="CRM user · relationship manager">
+                  <UserRound className="h-2.5 w-2.5" /> {`${l.user_fname || ""} ${l.user_lname || ""}`.trim()}
+                </span>
               )}
             </div>
           </div>

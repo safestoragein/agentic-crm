@@ -441,7 +441,13 @@ function Row({ c, onFollowUp }) {
         )}
       </td>
       <td className="hidden px-4 py-3 xl:table-cell">
-        <span className="whitespace-nowrap text-xs text-slate-600">{c.crm_user || "—"}</span>
+        {c.crm_user ? (
+          <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700" title="CRM user · relationship manager">
+            <UserCog className="h-3 w-3" /> {c.crm_user}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
       </td>
       <td className="hidden px-4 py-3 lg:table-cell">
         <span className="whitespace-nowrap text-xs text-slate-600">{c.warehouse_name || c.warehouse_no || "—"}</span>
