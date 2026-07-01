@@ -30,6 +30,7 @@ import {
   bookingScore,
   customerLifecycle,
   ymd,
+  triggerAutoShareWarehouse,
 } from "@/lib/crm";
 import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
@@ -75,6 +76,11 @@ export default function FollowUpsPage() {
       setView(v);
       setMode("quotations"); // these cohorts are the quotation follow-up queue
     }
+    // No cron — sweep & send the warehouse media kit (to customers created ~3 min
+    // ago) once when this page opens. Sending is strictly once-per-customer:
+    // the backend atomically claims warehouse_kit_sent_at (NULL→NOW), so repeated
+    // page loads / multiple open tabs can never double-send.
+    triggerAutoShareWarehouse();
   }, []);
 
   const load = useCallback(
