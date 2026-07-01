@@ -324,7 +324,7 @@ function EmailBadge({ email, signals }) {
     slate: "bg-slate-100 text-slate-600",
   };
   const Icon = info.viewed ? MailOpen : Mail;
-  const when = email.lastEventAt || email.sentAt;
+  const when = email?.lastEventAt || email?.sentAt;
   return (
     <span
       title={`${info.label}${when ? ` · ${when}` : ""}`}
