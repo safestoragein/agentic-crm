@@ -29,6 +29,7 @@ import { getSession } from "@/lib/auth";
 import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
 import QuoteCard from "@/components/QuoteCard";
+import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 
 // A customer dialled this many times with no connect is eligible for the
 // attempts-based RNR shuffle (the backend sweep should move them to a fresh
@@ -62,6 +63,7 @@ export default function RnrAnalyticsPage() {
   const [otpIds, setOtpIds] = useState(() => new Set());
   const [bookingSignals, setBookingSignals] = useState({});
   const [waStatus, setWaStatus] = useState({});
+  const [followUpFor, setFollowUpFor] = useState(null); // quote whose follow-up is being edited
 
   const load = useCallback(
     (signal) => {
@@ -441,6 +443,7 @@ export default function RnrAnalyticsPage() {
               otpIds={otpIds}
               bookingSignals={bookingSignals}
               waStatus={waStatus}
+              onQuickFollowUp={setFollowUpFor}
             />
           </Panel>
 
@@ -491,6 +494,23 @@ export default function RnrAnalyticsPage() {
             <BarList rows={byAttempts} total={rnr.length} />
           </Panel>
         </div>
+      )}
+
+      {followUpFor && (
+        <QuickFollowUpModal
+          entity="customer"
+          id={followUpFor.id}
+          name={followUpFor.name}
+          subtitle={followUpFor.uid || `ID ${followUpFor.id}`}
+          follow_up={followUpFor.status}
+          follow_up_date={followUpFor.followDate}
+          follow_up_note={followUpFor.noteFull}
+          onClose={() => setFollowUpFor(null)}
+          onSaved={() => {
+            setFollowUpFor(null);
+            load();
+          }}
+        />
       )}
     </div>
   );
@@ -636,7 +656,7 @@ const CANDIDATE_CAP = 50;
 // Same rich card as /quotations, one per shuffle candidate. Attempts/RNR signals
 // surface via the card's RNR badge + note; the card itself carries booking %,
 // lifecycle, OTP, email/WhatsApp status and the next-best-action.
-function CandidateCards({ rows, escMap, bookingMap, lifecycleMap, emailStatus, otpIds, bookingSignals, waStatus }) {
+function CandidateCards({ rows, escMap, bookingMap, lifecycleMap, emailStatus, otpIds, bookingSignals, waStatus, onQuickFollowUp }) {
   if (!rows || rows.length === 0)
     return <p className="py-6 text-center text-xs text-slate-400">No RNR customer has hit the attempt threshold. 🎉</p>;
   const shown = rows.slice(0, CANDIDATE_CAP);
@@ -656,6 +676,7 @@ function CandidateCards({ rows, escMap, bookingMap, lifecycleMap, emailStatus, o
           breach={false}
           breachMins={null}
           compact={false}
+          onQuickFollowUp={() => onQuickFollowUp?.(q)}
         />
       ))}
       {rows.length > CANDIDATE_CAP && (

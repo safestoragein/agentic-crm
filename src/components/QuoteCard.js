@@ -29,7 +29,7 @@ function slaSeverity(mins) {
 }
 
 /* ----------------------------- Quote card ----------------------------- */
-export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, breachMins, compact, onLogActivity }) {
+export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, breachMins, compact, onLogActivity, onQuickFollowUp }) {
   const nba = nextAction(q, esc);
   const st = stageBadge(q.stage || q.status);
   const [share, setShare] = useState("idle"); // idle | sending | sent | error
@@ -160,6 +160,16 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
             <WarehouseStatus wh={wh} />
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Quick follow-up — always available (status + date + note). */}
+            {onQuickFollowUp && (
+              <button
+                onClick={onQuickFollowUp}
+                title="Add follow-up"
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
+              >
+                <CalendarClock className="h-3.5 w-3.5" />
+              </button>
+            )}
             {/* Log activity — only for customers that were actually called
                 (have follow_up_start_time AND follow_up_end_time). */}
             {q.hasCallTimes && (

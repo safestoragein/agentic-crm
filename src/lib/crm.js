@@ -396,6 +396,21 @@ export async function updateQuotationFollowup(
   return res?.status === "success" || res?.status === true;
 }
 
+// Lightweight lead follow-up save — updates only follow_up, follow_up_date and
+// (appends) follow_up_note on ss_leads. Backed by agentic_crm/update_lead_follow_up,
+// which won't clobber pipeline_stage / contact_method. Returns true on success.
+export async function updateLeadFollowUp(
+  { leadId, followUp, followUpDate, followUpNote },
+  { signal } = {}
+) {
+  const fields = { id: leadId };
+  if (followUp != null) fields.follow_up = followUp;
+  if (followUpDate != null) fields.follow_up_date = followUpDate;
+  if (followUpNote != null) fields.follow_up_note = followUpNote;
+  const res = await apiPostForm("update_lead_follow_up", fields, { signal, module: "agentic_crm" });
+  return res?.status === "success" || res?.status === true;
+}
+
 // Team-wide quotations (every rep) — for the SLA board and coaching analytics.
 // Omitting relationship_manager_id returns all open quotes (is_customer = 0).
 export async function fetchTeamQuotations({ signal } = {}) {

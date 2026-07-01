@@ -20,7 +20,7 @@ import {
   Eye,
   Plus,
 } from "lucide-react";
-import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList, CalendarClock } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { fetchQuotations, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES, normStatus } from "@/lib/crm";
 
@@ -68,6 +68,7 @@ import { fetchTransferHistory, processReassignments } from "@/lib/rnr";
 import { runDailyFollowupWhatsapp } from "@/lib/whatsapp";
 import DateFilter from "@/components/DateFilter";
 import FollowUpModal from "@/components/FollowUpModal";
+import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PAGE_SIZE = 50;
@@ -95,6 +96,7 @@ export default function QuotationsPage() {
   const [compact, setCompact] = useState(false);
   const [selected, setSelected] = useState(null);
   const [followUpQuote, setFollowUpQuote] = useState(null); // open the log-activity modal
+  const [quickFollowFor, setQuickFollowFor] = useState(null); // open the quick follow-up modal
   const [emailStatus, setEmailStatus] = useState({}); // customer_id -> latest quote email status
   const [otpIds, setOtpIds] = useState(() => new Set()); // customer_ids with verified mobile OTP
   const [bookingSignals, setBookingSignals] = useState({}); // customer_id -> { opens, clicked }
@@ -592,6 +594,7 @@ export default function QuotationsPage() {
             breachMins={breachSet.has(q.id) ? minutesAgo(q.createdAt) : null}
             compact={compact}
             onLogActivity={() => setFollowUpQuote(q)}
+            onQuickFollowUp={() => setQuickFollowFor(q)}
           />
         ))}
       </div>
@@ -622,6 +625,23 @@ export default function QuotationsPage() {
           quote={followUpQuote}
           onClose={() => setFollowUpQuote(null)}
           onSaved={() => loadQuotes()}
+        />
+      )}
+
+      {quickFollowFor && (
+        <QuickFollowUpModal
+          entity="customer"
+          id={quickFollowFor.id}
+          name={quickFollowFor.name}
+          subtitle={quickFollowFor.uid || `ID ${quickFollowFor.id}`}
+          follow_up={quickFollowFor.status}
+          follow_up_date={quickFollowFor.followDate}
+          follow_up_note={quickFollowFor.noteFull}
+          onClose={() => setQuickFollowFor(null)}
+          onSaved={() => {
+            setQuickFollowFor(null);
+            loadQuotes();
+          }}
         />
       )}
     </div>
@@ -670,7 +690,7 @@ function SlaAlert({ breaches, onJump }) {
 }
 
 /* ----------------------------- Quote card ----------------------------- */
-function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, breachMins, compact, onLogActivity }) {
+function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, breachMins, compact, onLogActivity, onQuickFollowUp }) {
   const nba = nextAction(q, esc);
   const st = stageBadge(q.stage || q.status);
   const [share, setShare] = useState("idle"); // idle | sending | sent | error
@@ -801,6 +821,16 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
             <WarehouseStatus wh={wh} />
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Quick follow-up — always available (status + date + note). */}
+            {onQuickFollowUp && (
+              <button
+                onClick={onQuickFollowUp}
+                title="Add follow-up"
+                className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
+              >
+                <CalendarClock className="h-3.5 w-3.5" />
+              </button>
+            )}
             {/* Log activity — only for customers that were actually called
                 (have follow_up_start_time AND follow_up_end_time). */}
             {q.hasCallTimes && (

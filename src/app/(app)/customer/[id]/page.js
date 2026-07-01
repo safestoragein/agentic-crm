@@ -42,9 +42,11 @@ import {
   KeyRound,
   ExternalLink,
   AlertTriangle,
+  CalendarClock,
 } from "lucide-react";
 import { API_BASE } from "@/lib/api";
 import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra } from "@/lib/customer";
+import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { scoreCustomer, auditFollowup, contactSecs, TIER_STYLE } from "@/lib/leadScore";
 import CustomerDetailsForm from "@/components/CustomerDetailsForm";
 
@@ -61,6 +63,7 @@ export default function CustomerPage() {
   const [extraError, setExtraError] = useState(false);
   const [error, setError] = useState("");
   const [tab, setTab] = useState("details");
+  const [showFollowUp, setShowFollowUp] = useState(false);
 
   const load = useCallback(
     (signal) =>
@@ -198,6 +201,12 @@ export default function CustomerPage() {
 
                 {/* Quick actions */}
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setShowFollowUp(true)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-bold text-amber-950 shadow-sm transition-colors hover:bg-amber-300"
+                  >
+                    <CalendarClock className="h-4 w-4" /> Follow-up
+                  </button>
                   {c.customer_contact1 && (
                     <>
                       <a
@@ -313,6 +322,23 @@ export default function CustomerPage() {
           </div>
         )}
       </div>
+
+      {showFollowUp && c && (
+        <QuickFollowUpModal
+          entity="customer"
+          id={c.customer_id}
+          name={c.customer_name}
+          subtitle={c.customer_unique_id || `ID ${c.customer_id}`}
+          follow_up={c.follow_up}
+          follow_up_date={c.follow_up_date}
+          follow_up_note={c.follow_up_note}
+          onClose={() => setShowFollowUp(false)}
+          onSaved={() => {
+            setShowFollowUp(false);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

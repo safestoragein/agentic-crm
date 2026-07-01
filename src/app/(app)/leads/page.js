@@ -2,7 +2,8 @@
 import { appHref } from "@/lib/paths";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock } from "lucide-react";
+import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock } from "lucide-react";
+import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { getSession } from "@/lib/auth";
 import { ymd, normStatus } from "@/lib/crm";
 import { fetchHouseholdLeads, addHouseholdLead, fetchCrmUsers, transferLeads } from "@/lib/leads";
@@ -69,6 +70,7 @@ export default function LeadsPage() {
   const [reps, setReps] = useState([]);
   const [transferTo, setTransferTo] = useState("");
   const [transferring, setTransferring] = useState(false);
+  const [followUpFor, setFollowUpFor] = useState(null); // lead whose follow-up is being edited
 
   const load = useCallback(
     (signal) => {
@@ -264,12 +266,29 @@ export default function LeadsPage() {
                 </tr>
               )}
               {(list ? rows : []).map((l) => (
-                <Row key={l.id} l={l} />
+                <Row key={l.id} l={l} onFollowUp={setFollowUpFor} />
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {followUpFor && (
+        <QuickFollowUpModal
+          entity="lead"
+          id={followUpFor.id}
+          name={followUpFor.customer_name}
+          subtitle={`Lead ${followUpFor.id}`}
+          follow_up={followUpFor.follow_up}
+          follow_up_date={followUpFor.follow_up_date}
+          follow_up_note={followUpFor.follow_up_note}
+          onClose={() => setFollowUpFor(null)}
+          onSaved={() => {
+            setFollowUpFor(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -325,7 +344,7 @@ function callDur(l) {
 }
 
 /* ----------------------------- Row ----------------------------- */
-function Row({ l }) {
+function Row({ l, onFollowUp }) {
   const phone = String(l.customer_mobile_no || "").replace(/\D+/g, "");
   return (
     <tr className="hover:bg-slate-50/60">
@@ -393,6 +412,13 @@ function Row({ l }) {
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1.5">
+          <button
+            onClick={() => onFollowUp?.(l)}
+            title="Add follow-up"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
+          >
+            <CalendarClock className="h-3.5 w-3.5" />
+          </button>
           {phone && (
             <>
               <IconBtn href={`tel:${phone}`} title="Call" tone="call">
