@@ -11,6 +11,7 @@ import {
   Eye,
   StickyNote,
   CalendarClock,
+  MapPin,
 } from "lucide-react";
 import { ShieldAlert, ShieldCheck, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList } from "lucide-react";
 import { appHref } from "@/lib/paths";
@@ -112,6 +113,16 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
               <span>·</span>
               <span>{fmtDateTime(q.createdAt)}</span>
             </div>
+            {(q.city || q.pickupAddress) && (
+              <div className="mt-1 flex items-start gap-1 text-[11px] text-slate-500">
+                <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-indigo-400" />
+                <span className="min-w-0">
+                  {q.city && <span className="font-medium capitalize text-slate-600">{q.city}</span>}
+                  {q.city && q.pickupAddress && <span className="text-slate-400"> · </span>}
+                  {q.pickupAddress && <span className="line-clamp-2" title={q.pickupAddress}>{q.pickupAddress}</span>}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
