@@ -35,6 +35,7 @@ import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
 import { fetchHouseholdLeads } from "@/lib/leads";
 import FollowUpModal from "@/components/FollowUpModal";
+import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import QuoteCard from "@/components/QuoteCard";
 
 // A rep's focused follow-up queue: overdue → due-today → upcoming, with one-tap
@@ -66,6 +67,7 @@ export default function FollowUpsPage() {
   // overdue, however old, show). Cleared via the banner to return to date mode.
   const [view, setView] = useState(null);
   const [followUpRow, setFollowUpRow] = useState(null); // open the log-activity modal
+  const [quickFollowFor, setQuickFollowFor] = useState(null); // open the quick follow-up modal
 
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
@@ -482,6 +484,7 @@ export default function FollowUpsPage() {
               breachMins={null}
               compact={false}
               onLogActivity={() => setFollowUpRow(q)}
+              onQuickFollowUp={() => setQuickFollowFor(q)}
             />
           ))}
         </div>
@@ -517,7 +520,7 @@ export default function FollowUpsPage() {
                 </tr>
               )}
               {(data ? rows : []).map((r, i) => (
-                <Row key={`${r.qid || r.id}-${r.followDate}-${i}`} r={r} onLogActivity={() => setFollowUpRow(r)} />
+                <Row key={`${r.qid || r.id}-${r.followDate}-${i}`} r={r} onLogActivity={() => setFollowUpRow(r)} onQuickFollowUp={() => setQuickFollowFor(r)} />
               ))}
             </tbody>
           </table>
@@ -533,12 +536,30 @@ export default function FollowUpsPage() {
           onSaved={() => load()}
         />
       )}
+
+      {/* Quick follow-up — status + date + note, for both quotations and leads */}
+      {quickFollowFor && (
+        <QuickFollowUpModal
+          entity={quickFollowFor.kind === "lead" ? "lead" : "customer"}
+          id={quickFollowFor.id}
+          name={quickFollowFor.name}
+          subtitle={quickFollowFor.uid || (quickFollowFor.kind === "lead" ? `Lead ${quickFollowFor.id}` : `ID ${quickFollowFor.id}`)}
+          follow_up={quickFollowFor.status}
+          follow_up_date={quickFollowFor.followDate}
+          follow_up_note={quickFollowFor.noteFull || quickFollowFor.note}
+          onClose={() => setQuickFollowFor(null)}
+          onSaved={() => {
+            setQuickFollowFor(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 /* ----------------------------- Row ----------------------------- */
-function Row({ r, onLogActivity }) {
+function Row({ r, onLogActivity, onQuickFollowUp }) {
   return (
     <tr className="hover:bg-slate-50/60">
       <td className="px-4 py-3">
@@ -576,6 +597,14 @@ function Row({ r, onLogActivity }) {
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1.5">
+          {/* Quick follow-up — always available (status + date + note). */}
+          <button
+            onClick={onQuickFollowUp}
+            title="Add follow-up"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
+          >
+            <CalendarClock className="h-3.5 w-3.5" />
+          </button>
           {/* Log activity — only for called customers (have follow-up start+end time). */}
           {r.kind !== "lead" && r.hasCallTimes && (
             <IconBtn title="Log activity" tone="view" onClick={onLogActivity}>
