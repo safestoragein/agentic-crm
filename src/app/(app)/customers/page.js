@@ -308,6 +308,8 @@ export default function ManageCustomersPage() {
                 <Th className="hidden lg:table-cell">City</Th>
                 <Th>Status</Th>
                 <Th className="hidden md:table-cell">Follow-up</Th>
+                <Th className="hidden md:table-cell">Follow-up date</Th>
+                <Th className="hidden lg:table-cell">Follow-up note</Th>
                 <Th className="hidden xl:table-cell">CRM</Th>
                 <Th className="hidden lg:table-cell">Warehouse</Th>
                 <Th className="hidden xl:table-cell">Created</Th>
@@ -318,7 +320,7 @@ export default function ManageCustomersPage() {
               {!rows && [...Array(8)].map((_, i) => <SkeletonRow key={i} />)}
               {rows && rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-20 text-center">
+                  <td colSpan={10} className="py-20 text-center">
                     <div className="mx-auto flex max-w-xs flex-col items-center">
                       <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
                         <Users className="h-6 w-6" />
@@ -413,12 +415,23 @@ function Row({ c, onFollowUp }) {
       </td>
       <td className="hidden px-4 py-3 md:table-cell">
         {c.follow_up ? (
-          <div className="leading-tight">
-            <div className="whitespace-nowrap text-xs font-semibold capitalize text-slate-700">{prettyWords(c.follow_up)}</div>
-            {c.follow_up_date && !String(c.follow_up_date).startsWith("0000") && (
-              <div className="mt-0.5 whitespace-nowrap text-[11px] text-slate-400">{fmtDate(c.follow_up_date)}</div>
-            )}
-          </div>
+          <span className="whitespace-nowrap text-xs font-semibold capitalize text-slate-700">{prettyWords(c.follow_up)}</span>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
+      </td>
+      <td className="hidden px-4 py-3 md:table-cell">
+        {c.follow_up_date && !String(c.follow_up_date).startsWith("0000") ? (
+          <span className="whitespace-nowrap text-xs text-slate-600">{fmtDate(c.follow_up_date)}</span>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
+      </td>
+      <td className="hidden px-4 py-3 lg:table-cell">
+        {c.follow_up_note ? (
+          <p className="line-clamp-2 max-w-[220px] text-xs leading-snug text-slate-600" title={c.follow_up_note}>
+            {latestNote(c.follow_up_note)}
+          </p>
         ) : (
           <span className="text-xs text-slate-400">—</span>
         )}
@@ -477,7 +490,7 @@ function SkeletonRow() {
           </div>
         </div>
       </td>
-      {[...Array(6)].map((_, i) => (
+      {[...Array(8)].map((_, i) => (
         <td key={i} className={`px-4 py-3.5 ${i > 1 ? "hidden lg:table-cell" : ""}`}>
           <div className="h-3 w-16 animate-pulse rounded bg-slate-100" />
         </td>
@@ -745,6 +758,16 @@ function statusBadge(s) {
 function prettyWords(s) {
   if (!s) return "—";
   return String(s).replace(/[_-]+/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+// Most recent note line out of the appended, timestamped history blob
+// ("YYYY-MM-DD HH:MM:SS - text\n…") — strips the leading timestamp for display.
+function latestNote(note) {
+  if (!note) return "";
+  const parts = String(note).split("\n").map((s) => s.trim()).filter(Boolean);
+  const last = parts[parts.length - 1] || "";
+  const dash = last.indexOf(" - ");
+  return dash > 0 && dash <= 21 ? last.slice(dash + 3) : last;
 }
 
 // Canonical follow-up slug (e.g. "Follow Up Needed" -> "follow-up-needed"), so the
