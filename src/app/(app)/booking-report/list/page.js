@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Phone, MessageCircle, Mail, Filter, MapPin, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, MessageCircle, Mail, Filter, MapPin, Users, CalendarClock } from "lucide-react";
 import {
   fetchReportListExact,
   fetchQuoteEmailStatus,
@@ -21,6 +21,7 @@ import { fetchCustomerFilters } from "@/lib/customers";
 import { appHref } from "@/lib/paths";
 import DateFilter from "@/components/DateFilter";
 import QuoteCard from "@/components/QuoteCard";
+import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 
 // Types backed by quotation data → render the rich QuoteCard (booking score etc.).
 const QUOTE_TYPES = new Set(["quotation_customers", "follow_up_customers"]);
@@ -63,6 +64,12 @@ function ReportListInner() {
   const [signals, setSignals] = useState({});
   const [wa, setWa] = useState({});
   const [error, setError] = useState("");
+  const [followUpFor, setFollowUpFor] = useState(null); // { entity, id, name, subtitle, follow_up, follow_up_date, follow_up_note }
+  const [refresh, setRefresh] = useState(0);
+
+  // Lead-type report lists (lead_follow_up_customers, …) write to ss_leads; every
+  // other list is customer/quotation backed.
+  const listEntity = /lead/i.test(type) ? "lead" : "customer";
 
   const handleRange = useCallback((r) => setRange(r), []);
 
@@ -97,7 +104,7 @@ function ReportListInner() {
       fetchWhatsappStatus({ signal: ctrl.signal }).then(setWa).catch(() => {});
     }
     return () => ctrl.abort();
-  }, [type, isQuote, range, city]);
+  }, [type, isQuote, range, city, refresh]);
 
   // Per-quote computed maps (quotation types only).
   const escMap = useMemo(() => new Map((quotes || []).map((q) => [String(q.id), evaluateEscalation(q)])), [quotes]);
@@ -242,6 +249,17 @@ function ReportListInner() {
               breach={false}
               breachMins={null}
               compact={false}
+              onQuickFollowUp={() =>
+                setFollowUpFor({
+                  entity: "customer",
+                  id: q.id,
+                  name: q.name,
+                  subtitle: q.uid || `ID ${q.id}`,
+                  follow_up: q.status,
+                  follow_up_date: q.followDate,
+                  follow_up_note: q.noteFull,
+                })
+              }
             />
           ))}
         </div>
@@ -252,9 +270,40 @@ function ReportListInner() {
         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {filteredRows.length === 0 && <p className="px-5 py-16 text-center text-sm text-slate-400">No customers match these filters.</p>}
           {filteredRows.map((r, i) => (
-            <ListRow key={`${r.id}-${i}`} r={r} />
+            <ListRow
+              key={`${r.id}-${i}`}
+              r={r}
+              onFollowUp={() =>
+                setFollowUpFor({
+                  entity: listEntity,
+                  id: r.id,
+                  name: r.name,
+                  subtitle: r.uid || (listEntity === "lead" ? `Lead ${r.id}` : `ID ${r.id}`),
+                  follow_up: r.status,
+                  follow_up_date: r.followDate,
+                  follow_up_note: "",
+                })
+              }
+            />
           ))}
         </div>
+      )}
+
+      {followUpFor && (
+        <QuickFollowUpModal
+          entity={followUpFor.entity}
+          id={followUpFor.id}
+          name={followUpFor.name}
+          subtitle={followUpFor.subtitle}
+          follow_up={followUpFor.follow_up}
+          follow_up_date={followUpFor.follow_up_date}
+          follow_up_note={followUpFor.follow_up_note}
+          onClose={() => setFollowUpFor(null)}
+          onSaved={() => {
+            setFollowUpFor(null);
+            setRefresh((n) => n + 1);
+          }}
+        />
       )}
     </div>
   );
@@ -276,7 +325,7 @@ function FilterSelect({ icon: Icon, active, value, onChange, placeholder, childr
   );
 }
 
-function ListRow({ r }) {
+function ListRow({ r, onFollowUp }) {
   const phone = String(r.phone || "").replace(/\D/g, "").slice(-10);
   return (
     <div className="flex items-center gap-3 border-b border-slate-50 px-5 py-3 last:border-0 hover:bg-slate-50/60">
@@ -303,6 +352,13 @@ function ListRow({ r }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          onClick={() => onFollowUp?.()}
+          title="Add follow-up"
+          className="rounded-lg border border-amber-200 bg-amber-50 p-1.5 text-amber-600 hover:bg-amber-100"
+        >
+          <CalendarClock className="h-4 w-4" />
+        </button>
         {r.email && (
           <a href={`mailto:${r.email}`} className="rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:bg-slate-100">
             <Mail className="h-4 w-4" />
