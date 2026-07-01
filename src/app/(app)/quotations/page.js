@@ -858,10 +858,13 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
 
       {/* Footer: follow-up + note + next action */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 text-xs">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="text-slate-500">
-            Follow-up: <FollowCell q={q} />
-          </span>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {q.status && (
+            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-indigo-700">
+              {String(q.status).replace(/[-_]+/g, " ")}
+            </span>
+          )}
+          <FollowWhen q={q} />
           {q.verified ? (
             <span className="inline-flex items-center gap-1 font-medium text-emerald-600">
               <BadgeCheck className="h-3.5 w-3.5" /> {q.lastContactAgo || "logged"}
@@ -877,13 +880,26 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
   );
 }
 
-function FollowCell({ q }) {
-  const tone =
-    q.bucket === "overdue" ? "text-rose-600" : q.bucket === "today" ? "text-amber-600" : "text-slate-700";
-  return q.followDate ? (
-    <span className={`text-sm font-semibold ${tone}`}>{fmtDate(q.followDate)}</span>
-  ) : (
-    <span className="text-sm text-slate-400">—</span>
+// Colored follow-up date pill — same visual language as the Follow-ups tab
+// (red = overdue, amber = due today, grey = upcoming / dated).
+function FollowWhen({ q }) {
+  if (!q.followDate) return <span className="text-[11px] text-slate-400">No follow-up date</span>;
+  if (q.bucket === "overdue")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+        <AlertTriangle className="h-3 w-3" /> {q.overdueDays}d overdue · {fmtDate(q.followDate)}
+      </span>
+    );
+  if (q.bucket === "today")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+        <Clock className="h-3 w-3" /> Due today
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+      {q.inDays != null ? `In ${q.inDays}d · ` : ""}{fmtDate(q.followDate)}
+    </span>
   );
 }
 

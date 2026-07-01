@@ -2,7 +2,7 @@
 import { appHref } from "@/lib/paths";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock } from "lucide-react";
+import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock, AlertTriangle } from "lucide-react";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { getSession } from "@/lib/auth";
 import { ymd, normStatus } from "@/lib/crm";
@@ -387,15 +387,15 @@ function Row({ l, onFollowUp }) {
       </td>
       <td className="px-4 py-3">
         {l.follow_up ? (
-          <div className="leading-tight">
-            <div className="whitespace-nowrap text-xs font-semibold capitalize text-slate-700">{prettyWords(l.follow_up)}</div>
-            {l.follow_up_date && !String(l.follow_up_date).startsWith("0000") && (
-              <div className="mt-0.5 whitespace-nowrap text-[11px] text-slate-400">{fmtDate(l.follow_up_date)}</div>
-            )}
+          <div className="flex flex-col items-start gap-1 leading-tight">
+            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-indigo-700">
+              {prettyWords(l.follow_up)}
+            </span>
+            <LeadWhen date={l.follow_up_date} />
             {callDur(l) && (
-              <div className="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-600" title="Time spent on this follow-up">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-medium text-emerald-600" title="Time spent on this follow-up">
                 <Clock className="h-3 w-3" /> {callDur(l)}
-              </div>
+              </span>
             )}
           </div>
         ) : (
@@ -596,6 +596,40 @@ function fmtDate(value) {
   const [y, m, d] = String(value).slice(0, 10).split("-");
   if (!m || !d) return "—";
   return `${+d} ${MONTHS[+m - 1]} ${y}`;
+}
+
+// Bucket a follow-up date against today: overdue / today / upcoming.
+function followBucket(value) {
+  if (!value || String(value).startsWith("0000")) return null;
+  const s = String(value).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+  const delta = Math.round((new Date(ymd() + "T00:00:00") - new Date(s + "T00:00:00")) / 86400000);
+  if (delta > 0) return { bucket: "overdue", days: delta, date: s };
+  if (delta === 0) return { bucket: "today", days: 0, date: s };
+  return { bucket: "upcoming", days: -delta, date: s };
+}
+
+// Colored follow-up date pill — same visual language as the Follow-ups tab.
+function LeadWhen({ date }) {
+  const b = followBucket(date);
+  if (!b) return null;
+  if (b.bucket === "overdue")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+        <AlertTriangle className="h-3 w-3" /> {b.days}d overdue · {fmtDate(b.date)}
+      </span>
+    );
+  if (b.bucket === "today")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+        <Clock className="h-3 w-3" /> Due today
+      </span>
+    );
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+      In {b.days}d · {fmtDate(b.date)}
+    </span>
+  );
 }
 
 function fmtDateTime(value) {
