@@ -20,7 +20,7 @@ import {
   Eye,
   Plus,
 } from "lucide-react";
-import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList, CalendarClock } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList, CalendarClock, StickyNote } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { fetchQuotations, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES, normStatus } from "@/lib/crm";
 
@@ -856,25 +856,34 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
         </div>
       )}
 
-      {/* Footer: follow-up + note + next action */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 text-xs">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {q.status && (
-            <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-indigo-700">
-              {String(q.status).replace(/[-_]+/g, " ")}
-            </span>
-          )}
-          <FollowWhen q={q} />
-          {q.verified ? (
-            <span className="inline-flex items-center gap-1 font-medium text-emerald-600">
-              <BadgeCheck className="h-3.5 w-3.5" /> {q.lastContactAgo || "logged"}
-            </span>
-          ) : (
-            <span className="text-slate-400">Not called yet</span>
-          )}
-          {q.note && <span className="line-clamp-1 max-w-[420px] text-slate-400" title={q.noteFull}>{q.note}</span>}
+      {/* Footer: follow-up status + date + highlighted note + next action */}
+      <div className="mt-3 border-t border-slate-100 pt-3 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            {q.status && (
+              <span className="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold capitalize text-indigo-700">
+                {String(q.status).replace(/[-_]+/g, " ")}
+              </span>
+            )}
+            <FollowWhen q={q} />
+            {q.verified ? (
+              <span className="inline-flex items-center gap-1 font-medium text-emerald-600">
+                <BadgeCheck className="h-3.5 w-3.5" /> {q.lastContactAgo || "logged"}
+              </span>
+            ) : (
+              <span className="text-slate-400">Not called yet</span>
+            )}
+          </div>
+          <NbaChip nba={nba} />
         </div>
-        <NbaChip nba={nba} />
+        {q.noteFull && String(q.noteFull).trim() && (
+          <div className="mt-2 flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-2">
+            <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500" />
+            <p className="max-h-40 overflow-y-auto whitespace-pre-line break-words text-[12px] leading-relaxed text-slate-700">
+              {String(q.noteFull).trim()}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
