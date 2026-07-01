@@ -146,20 +146,24 @@ export default function LeadsPage() {
   }, [list]);
 
   const rows = useMemo(() => {
+    // Latest leads first — sort by id descending (newest lead on top) by default.
+    const byIdDesc = (a, b) => (Number(b.id) || 0) - (Number(a.id) || 0);
     const q = query.trim().toLowerCase();
-    if (!q) return list || [];
+    if (!q) return [...(list || [])].sort(byIdDesc);
     const digits = q.replace(/\D/g, "");
-    return (list || []).filter(
-      (l) =>
-        (l.customer_name || "").toLowerCase().includes(q) ||
-        (l.customer_email || "").toLowerCase().includes(q) ||
-        (l.customer_local_city || "").toLowerCase().includes(q) ||
-        String(l.id || "").includes(q) || // lead id
-        String(l.customer_id || "").includes(q) ||
-        String(l.customer_unique_id || "").toLowerCase().includes(q) ||
-        (l.customer_mobile_no || "").includes(q) ||
-        (!!digits && String(l.customer_mobile_no || "").replace(/\D/g, "").includes(digits))
-    );
+    return (list || [])
+      .filter(
+        (l) =>
+          (l.customer_name || "").toLowerCase().includes(q) ||
+          (l.customer_email || "").toLowerCase().includes(q) ||
+          (l.customer_local_city || "").toLowerCase().includes(q) ||
+          String(l.id || "").includes(q) || // lead id
+          String(l.customer_id || "").includes(q) ||
+          String(l.customer_unique_id || "").toLowerCase().includes(q) ||
+          (l.customer_mobile_no || "").includes(q) ||
+          (!!digits && String(l.customer_mobile_no || "").replace(/\D/g, "").includes(digits))
+      )
+      .sort(byIdDesc);
   }, [list, query]);
 
 
