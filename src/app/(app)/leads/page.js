@@ -416,7 +416,7 @@ function Row({ l, onFollowUp }) {
       </td>
       <td className="hidden px-4 py-3 align-top lg:table-cell">
         {l.follow_up_note ? (
-          <div className="max-h-40 min-w-[200px] max-w-[320px] overflow-y-auto whitespace-pre-line break-words rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-xs leading-snug text-slate-700">
+          <div className="max-h-40 min-w-[200px] max-w-[320px] overflow-y-auto whitespace-pre-line break-words rounded-lg border border-l-4 border-amber-300 border-l-amber-500 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold leading-snug text-slate-900 shadow-sm">
             {l.follow_up_note}
           </div>
         ) : (

@@ -231,10 +231,17 @@ function WinRow({ q, score, nba }) {
       <td className="px-4 py-3">
         <FollowCell q={q} />
       </td>
-      <td className="hidden px-4 py-3 lg:table-cell">
-        <p className="line-clamp-2 max-w-[220px] text-xs leading-snug text-slate-500" title={q.noteFull || q.note}>
-          {q.note || "—"}
-        </p>
+      <td className="hidden px-4 py-3 align-top lg:table-cell">
+        {q.note ? (
+          <p
+            className="line-clamp-3 max-w-[240px] break-words rounded-lg border border-l-4 border-amber-300 border-l-amber-500 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold leading-snug text-slate-900 shadow-sm"
+            title={q.noteFull || q.note}
+          >
+            {q.note}
+          </p>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
       </td>
       <td className="px-4 py-3">
         <div className="min-w-[64px]" title={score.reasons?.length ? `Why: ${score.reasons.join(" · ")}` : ""}>

@@ -604,10 +604,14 @@ function Row({ r, onLogActivity, onQuickFollowUp }) {
       <td className="hidden px-4 py-3 lg:table-cell">
         <span className="text-xs capitalize text-slate-600">{r.stage || "—"}</span>
       </td>
-      <td className="hidden px-4 py-3 lg:table-cell">
-        <p className="line-clamp-2 max-w-[240px] text-xs leading-snug text-slate-500" title={r.note}>
-          {r.note || "—"}
-        </p>
+      <td className="hidden px-4 py-3 align-top lg:table-cell">
+        {r.note ? (
+          <div className="max-h-32 min-w-[200px] max-w-[300px] overflow-y-auto whitespace-pre-line break-words rounded-lg border border-l-4 border-amber-300 border-l-amber-500 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold leading-snug text-slate-900 shadow-sm">
+            {r.note}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1.5">

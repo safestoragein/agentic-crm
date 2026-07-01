@@ -892,9 +892,9 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
           <NbaChip nba={nba} />
         </div>
         {q.noteFull && String(q.noteFull).trim() && (
-          <div className="mt-2 flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-2">
-            <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500" />
-            <p className="max-h-40 overflow-y-auto whitespace-pre-line break-words text-[12px] leading-relaxed text-slate-700">
+          <div className="mt-2 flex items-start gap-2 rounded-lg border border-l-4 border-amber-400 border-l-amber-500 bg-amber-50 px-3 py-2 shadow-sm">
+            <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="max-h-40 overflow-y-auto whitespace-pre-line break-words text-[12.5px] font-semibold leading-relaxed text-slate-900">
               {String(q.noteFull).trim()}
             </p>
           </div>
@@ -1087,7 +1087,7 @@ function Drawer({ quote, esc, booking, lifecycle, onClose }) {
                     {quote.verified ? `Last call logged ${quote.lastContactAgo}` : "No call logged yet"}
                   </div>
                   {quote.noteFull && (
-                    <div className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-line leading-relaxed text-slate-600">
+                    <div className="mt-1.5 max-h-40 overflow-y-auto whitespace-pre-line break-words rounded-lg border border-l-4 border-amber-300 border-l-amber-500 bg-amber-50 px-2.5 py-1.5 font-semibold leading-relaxed text-slate-900 shadow-sm">
                       {quote.noteFull}
                     </div>
                   )}

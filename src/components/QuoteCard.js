@@ -229,9 +229,9 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
           <NbaChip nba={nba} />
         </div>
         {q.noteFull && String(q.noteFull).trim() && (
-          <div className="mt-2 flex items-start gap-2 rounded-lg border border-indigo-100 bg-indigo-50/60 px-2.5 py-2">
-            <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500" />
-            <p className="whitespace-pre-line break-words text-[12px] leading-relaxed text-slate-700">
+          <div className="mt-2 flex items-start gap-2 rounded-lg border-l-4 border border-amber-400 border-l-amber-500 bg-amber-50 px-3 py-2 shadow-sm">
+            <StickyNote className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <p className="whitespace-pre-line break-words text-[12.5px] font-semibold leading-relaxed text-slate-900">
               {String(q.noteFull).trim()}
             </p>
           </div>
