@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Loader2, Phone, MessageCircle, Mail, Filter, MapPin, Users, CalendarClock, UserRound } from "lucide-react";
+import { ArrowLeft, Loader2, Phone, MessageCircle, Mail, Filter, MapPin, Users, CalendarClock, UserRound, Eye } from "lucide-react";
 import {
   fetchReportListExact,
   fetchQuoteEmailStatus,
@@ -356,6 +356,15 @@ function ListRow({ r, onFollowUp }) {
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5">
+        {r.id && (
+          <a
+            href={appHref(`/customer/${r.id}`)}
+            title="View customer details"
+            className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
+          >
+            <Eye className="h-4 w-4" /> View
+          </a>
+        )}
         <button
           onClick={() => onFollowUp?.()}
           title="Add follow-up"
