@@ -16,6 +16,7 @@ import {
   Timer,
   Hourglass,
   Gauge,
+  CalendarDays,
 } from "lucide-react";
 import { fetchActivitySummary, fetchActivityLogs, saveProductivity } from "@/lib/activity";
 import { fetchQuotations } from "@/lib/crm";
@@ -222,13 +223,18 @@ export default function ProductivityPage() {
               ))}
             </select>
           )}
-          <input
-            type="date"
-            value={date}
-            max={todayYmd()}
-            onChange={(e) => setDate(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-indigo-400 focus:outline-none"
-          />
+          <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50/50 px-2 py-1 ring-1 ring-indigo-200">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+              <CalendarDays className="h-3 w-3" /> Date
+            </span>
+            <input
+              type="date"
+              value={date}
+              max={todayYmd()}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-transparent px-1 py-1 text-sm text-slate-700 focus:outline-none"
+            />
+          </div>
           <button
             onClick={() => load()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"

@@ -273,12 +273,10 @@ export default function ManageCustomersPage() {
           </Pill>
 
           {/* date range pill */}
-          <div
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 ${
-              f.dateFrom || f.dateTo ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"
-            }`}
-          >
-            <CalendarDays className={`h-3.5 w-3.5 ${f.dateFrom || f.dateTo ? "text-indigo-500" : "text-slate-400"}`} />
+          <div className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50/50 px-2.5 py-1.5 ring-1 ring-indigo-200">
+            <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+              <CalendarDays className="h-3 w-3" /> Date
+            </span>
             <input
               type="date"
               value={f.dateFrom}

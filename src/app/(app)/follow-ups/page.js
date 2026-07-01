@@ -361,8 +361,10 @@ export default function FollowUpsPage() {
 
       {/* follow-up date range filter — hidden while a cohort view is active */}
       <div className={`mt-4 flex flex-wrap items-center gap-2 ${view ? "hidden" : ""}`}>
-        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5">
-          <CalendarClock className="h-4 w-4 text-slate-400" />
+        <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50/50 px-3 py-1.5 ring-1 ring-indigo-200">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+            <CalendarClock className="h-3 w-3" /> Date
+          </span>
           <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none" />
           <span className="text-xs text-slate-400">to</span>
           <input type="date" value={to} min={from} max={ymd()} onChange={(e) => setTo(e.target.value)} className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none" />

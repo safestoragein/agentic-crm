@@ -30,8 +30,10 @@ export default function DateFilter({ onChange, defaultPreset = "today" }) {
 
   return (
     <div className="flex flex-col items-stretch gap-2 sm:items-end">
-      <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
-        <CalendarDays className="ml-1.5 mr-0.5 h-4 w-4 text-slate-400" />
+      <div className="inline-flex items-center gap-1 rounded-xl border border-indigo-300 bg-indigo-50/50 p-1 shadow-sm ring-1 ring-indigo-200">
+        <span className="ml-0.5 mr-0.5 inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-indigo-700">
+          <CalendarDays className="h-3.5 w-3.5" /> Date
+        </span>
         {PRESETS.map((p) => (
           <button
             key={p.key}
@@ -56,7 +58,7 @@ export default function DateFilter({ onChange, defaultPreset = "today" }) {
       </div>
 
       {preset === "custom" && (
-        <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+        <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50/50 px-2 py-1.5 shadow-sm ring-1 ring-indigo-200">
           <input
             type="date"
             value={custom.from}
