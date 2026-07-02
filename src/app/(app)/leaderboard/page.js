@@ -221,8 +221,8 @@ function WinRow({ q, score, nba }) {
               {q.name}
             </a>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
-              {q.contact && <span className="tabular-nums">+91 {q.contact}</span>}
-              {q.email && <span className="truncate">{q.email}</span>}
+              {q.contact && <span className="text-sm font-bold text-slate-900 tabular-nums">+91 {q.contact}</span>}
+              {q.email && <span className="truncate text-sm font-bold text-slate-900">{q.email}</span>}
             </div>
             {(q.stage || q.status) && <div className="mt-0.5 text-[11px] capitalize text-slate-400">{q.stage || q.status}</div>}
           </div>

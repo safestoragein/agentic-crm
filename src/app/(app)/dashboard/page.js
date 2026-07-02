@@ -487,17 +487,17 @@ function CallNextCard({ queue }) {
             {item.contact && (
               <a
                 href={`tel:+91${item.contact}`}
-                className="inline-flex items-center gap-1.5 font-medium text-slate-700 hover:text-emerald-700"
+                className="inline-flex items-center gap-1.5 text-base font-bold text-slate-900 hover:text-emerald-700"
               >
-                <Phone className="h-3.5 w-3.5 text-emerald-600" /> +91 {item.contact}
+                <Phone className="h-4 w-4 text-emerald-600" /> +91 {item.contact}
               </a>
             )}
             {item.email && (
               <a
                 href={`mailto:${item.email}`}
-                className="inline-flex items-center gap-1.5 text-slate-600 hover:text-indigo-700"
+                className="inline-flex items-center gap-1.5 text-base font-bold text-slate-900 hover:text-indigo-700"
               >
-                <Mail className="h-3.5 w-3.5 text-indigo-500" /> {item.email}
+                <Mail className="h-4 w-4 text-indigo-500" /> {item.email}
               </a>
             )}
           </div>

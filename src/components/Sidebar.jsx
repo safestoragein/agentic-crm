@@ -32,19 +32,20 @@ const NAV = [
   { href: "/follow-ups", label: "Follow-ups", icon: CalendarClock },
   { href: "/blank-followups", label: "Blank Follow-ups", icon: CalendarX },
   { href: "/customers", label: "Manage Customers", icon: UserCog },
-  { href: "/sla", label: "SLA Board", icon: Timer },
   { href: "/booking-report", label: "Booking Report", icon: BarChart3 },
-  { href: "/rnr", label: "RNR Analytics", icon: PhoneOff },
-  { href: "/whatsapp", label: "WhatsApp Engaged", icon: MessageCircle },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
-  { href: "/ai-analytics", label: "AI Analytics", icon: Sparkles },
   { href: "/logs", label: "Productivity", icon: ScrollText },
 ];
 
 // Admin-only nav (gated by isAdmin) — replaces the rep nav for admins.
+// SLA / RNR / WhatsApp / AI analytics are admin-only and live here, not in NAV.
 const ADMIN_NAV = [
   { href: "/admin", label: "Team Report", icon: ShieldCheck },
   { href: "/admin/agents", label: "Agent-wise Stats", icon: Users },
+  { href: "/sla", label: "SLA Board", icon: Timer },
+  { href: "/rnr", label: "RNR Analytics", icon: PhoneOff },
+  { href: "/whatsapp", label: "WhatsApp Engaged", icon: MessageCircle },
+  { href: "/ai-analytics", label: "AI Analytics", icon: Sparkles },
 ];
 
 export default function Sidebar() {

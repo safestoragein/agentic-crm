@@ -102,12 +102,12 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
               <span className="capitalize">{q.city || "—"}</span>
               <span>·</span>
               <span className="font-semibold text-slate-700">{fmtMoney(q.value)}</span>
-              {q.contact && (<><span>·</span><span>+91 {q.contact}</span></>)}
+              {q.contact && (<><span>·</span><span className="text-sm font-bold text-slate-900 tabular-nums">+91 {q.contact}</span></>)}
               {q.email && (
                 <>
                   <span>·</span>
-                  <a href={`mailto:${q.email}`} className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-600" title={q.email}>
-                    <Mail className="h-3 w-3" /> {q.email}
+                  <a href={`mailto:${q.email}`} className="inline-flex items-center gap-1 text-sm font-bold text-slate-900 hover:text-indigo-600" title={q.email}>
+                    <Mail className="h-4 w-4" /> {q.email}
                   </a>
                 </>
               )}

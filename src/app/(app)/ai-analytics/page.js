@@ -14,12 +14,21 @@ import {
 } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { fetchQuotations } from "@/lib/crm";
+import AdminOnly from "@/components/AdminOnly";
 
 // AI-style coaching over the rep's own quotations: speed-to-lead, the hours they
 // actually connect (best-connect window), pipeline health, and derived tips.
 // All computed from data already in fetchQuotations — no new backend.
 
 export default function AiAnalyticsPage() {
+  return (
+    <AdminOnly>
+      <AiAnalyticsPageInner />
+    </AdminOnly>
+  );
+}
+
+function AiAnalyticsPageInner() {
   const [list, setList] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

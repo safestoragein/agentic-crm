@@ -371,8 +371,8 @@ function Row({ l, onFollowUp }) {
               )}
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
-              {l.customer_mobile_no && <span className="tabular-nums">{l.customer_mobile_no}</span>}
-              {l.customer_email && <span className="truncate">{l.customer_email}</span>}
+              {l.customer_mobile_no && <span className="text-sm font-bold text-slate-900 tabular-nums">{l.customer_mobile_no}</span>}
+              {l.customer_email && <span className="truncate text-sm font-bold text-slate-900">{l.customer_email}</span>}
               {l.customer_local_city && <span className="capitalize">· {l.customer_local_city}</span>}
               {(l.user_fname || l.user_lname) && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700" title="CRM user · relationship manager">

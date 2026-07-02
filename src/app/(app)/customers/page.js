@@ -399,8 +399,8 @@ function Row({ c, onFollowUp }) {
               </span>
             </div>
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2.5 text-[11px] text-slate-500">
-              {c.customer_contact1 && <span className="tabular-nums">+91 {c.customer_contact1}</span>}
-              {c.customer_email && <span className="truncate">{c.customer_email}</span>}
+              {c.customer_contact1 && <span className="text-sm font-bold text-slate-900 tabular-nums">+91 {c.customer_contact1}</span>}
+              {c.customer_email && <span className="truncate text-sm font-bold text-slate-900">{c.customer_email}</span>}
             </div>
           </div>
         </div>

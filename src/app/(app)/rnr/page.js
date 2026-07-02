@@ -30,6 +30,7 @@ import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
 import QuoteCard from "@/components/QuoteCard";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
+import AdminOnly from "@/components/AdminOnly";
 
 // A customer dialled this many times with no connect is eligible for the
 // attempts-based RNR shuffle (the backend sweep should move them to a fresh
@@ -52,6 +53,14 @@ function isShuffleCandidate(r) {
 // stops being a guess.
 
 export default function RnrAnalyticsPage() {
+  return (
+    <AdminOnly>
+      <RnrAnalyticsPageInner />
+    </AdminOnly>
+  );
+}
+
+function RnrAnalyticsPageInner() {
   const [list, setList] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

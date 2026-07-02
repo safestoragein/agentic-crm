@@ -22,6 +22,7 @@ import { getSession } from "@/lib/auth";
 import { ymd } from "@/lib/crm";
 import { fetchEngagedWhatsapp, fetchFailedWhatsapp, fetchFollowupEmails } from "@/lib/whatsapp";
 import { analyzeSentiment, SENTIMENT_STYLE, INTENT_STYLE } from "@/lib/sentiment";
+import AdminOnly from "@/components/AdminOnly";
 
 // Customers who actually engaged with a WhatsApp follow-up — delivered, seen
 // (read) or replied. These are the warm ones worth a same-day callback.
@@ -46,6 +47,14 @@ const RANGES = [
 ];
 
 export default function WhatsappEngagedPage() {
+  return (
+    <AdminOnly>
+      <WhatsappEngagedPageInner />
+    </AdminOnly>
+  );
+}
+
+function WhatsappEngagedPageInner() {
   const [list, setList] = useState(null);
   const [failed, setFailed] = useState(null);
   const [emails, setEmails] = useState(null);
@@ -374,9 +383,9 @@ function Row({ r, tier }) {
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 text-sm tabular-nums text-slate-700">{phone10 ? `+91 ${phone10}` : "—"}</td>
+      <td className="px-4 py-3 text-base font-bold tabular-nums text-slate-900">{phone10 ? `+91 ${phone10}` : "—"}</td>
       <td className="hidden px-4 py-3 md:table-cell">
-        <span className="truncate text-xs text-slate-600">{r.customer_email || "—"}</span>
+        <span className="truncate text-sm font-bold text-slate-900">{r.customer_email || "—"}</span>
       </td>
       <td className="px-4 py-3">
         <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${eng.cls}`}>
@@ -446,9 +455,9 @@ function FailedRow({ r }) {
           </div>
         </div>
       </td>
-      <td className="px-4 py-3 text-sm tabular-nums text-slate-700">{phone10 ? `+91 ${phone10}` : "—"}</td>
+      <td className="px-4 py-3 text-base font-bold tabular-nums text-slate-900">{phone10 ? `+91 ${phone10}` : "—"}</td>
       <td className="hidden px-4 py-3 md:table-cell">
-        <span className="truncate text-xs text-slate-600">{r.customer_email || "—"}</span>
+        <span className="truncate text-sm font-bold text-slate-900">{r.customer_email || "—"}</span>
       </td>
       <td className="px-4 py-3">
         <span

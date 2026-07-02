@@ -24,6 +24,7 @@ import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
 import { slaFor, fmtDur } from "@/lib/sla";
 import QuoteCard from "@/components/QuoteCard";
+import AdminOnly from "@/components/AdminOnly";
 
 const SLA_LABELS = {
   first_response: "First response",
@@ -39,6 +40,14 @@ const VIEW_TABS = [
 ];
 
 export default function SlaBoardPage() {
+  return (
+    <AdminOnly>
+      <SlaBoardPageInner />
+    </AdminOnly>
+  );
+}
+
+function SlaBoardPageInner() {
   const [list, setList] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);

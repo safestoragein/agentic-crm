@@ -583,8 +583,8 @@ function Row({ r, onLogActivity, onQuickFollowUp }) {
               </a>
             )}
             <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-500">
-              {r.contact && <span className="tabular-nums">+91 {r.contact}</span>}
-              {r.email && <span className="truncate">{r.email}</span>}
+              {r.contact && <span className="text-sm font-bold text-slate-900 tabular-nums">+91 {r.contact}</span>}
+              {r.email && <span className="truncate text-sm font-bold text-slate-900">{r.email}</span>}
               {r.city && <span className="capitalize">· {r.city}</span>}
               {r.rep && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700" title="CRM user · relationship manager">

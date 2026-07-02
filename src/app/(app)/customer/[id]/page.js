@@ -187,13 +187,13 @@ export default function CustomerPage() {
                       </span>
                     )}
                     {c.customer_contact1 && (
-                      <span className="inline-flex items-center gap-1 tabular-nums">
-                        <Phone className="h-3.5 w-3.5" /> +91 {c.customer_contact1}
+                      <span className="inline-flex items-center gap-1 text-base font-bold text-white tabular-nums">
+                        <Phone className="h-4 w-4" /> +91 {c.customer_contact1}
                       </span>
                     )}
                     {c.customer_email && (
-                      <span className="inline-flex items-center gap-1">
-                        <Mail className="h-3.5 w-3.5" /> {c.customer_email}
+                      <span className="inline-flex items-center gap-1 text-base font-bold text-white">
+                        <Mail className="h-4 w-4" /> {c.customer_email}
                       </span>
                     )}
                   </div>

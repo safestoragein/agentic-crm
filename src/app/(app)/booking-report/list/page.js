@@ -339,10 +339,10 @@ function ListRow({ r, onFollowUp }) {
           {r.name} {r.uid && <span className="text-[11px] font-normal text-slate-400">{r.uid}</span>}
         </a>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
-          {phone && <span>+91 {phone}</span>}
+          {phone && <span className="text-sm font-bold text-slate-900 tabular-nums">+91 {phone}</span>}
           {r.email && (
-            <span className="inline-flex items-center gap-1 truncate">
-              <Mail className="h-3 w-3 text-slate-400" /> {r.email}
+            <span className="inline-flex items-center gap-1 truncate text-sm font-bold text-slate-900">
+              <Mail className="h-4 w-4 text-slate-400" /> {r.email}
             </span>
           )}
           {r.city && <span className="capitalize">· {r.city}</span>}

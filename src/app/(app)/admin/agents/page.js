@@ -295,7 +295,7 @@ function FlaggedDetail({ flagged, name }) {
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-2 font-mono text-[11px] text-slate-500">
                         {f.uid && <span className="rounded bg-slate-100 px-1.5 py-0.5">{f.uid}</span>}
-                        {f.contact && <span>{f.contact}</span>}
+                        {f.contact && <span className="text-sm font-bold text-slate-900">{f.contact}</span>}
                         {f.lostReason && (
                           <span className="rounded-full bg-rose-50 px-1.5 py-0.5 font-sans font-semibold text-rose-600">
                             {LOSS_LABELS[f.lostReason] || f.lostReason}

@@ -1062,8 +1062,8 @@ function Drawer({ quote, esc, booking, lifecycle, onClose }) {
                   <DRow k="Created" v={fmtDateTime(quote.createdAt)} />
                   {quote.rnrSince && <DRow k="In RNR since" v={fmtDateTime(quote.rnrSince)} />}
                   {quote.callDuration && <DRow k="Last call duration" v={quote.callDuration} />}
-                  {quote.contact && <DRow k="Phone" v={`+91 ${quote.contact}`} />}
-                  {quote.email && <DRow k="Email" v={quote.email} />}
+                  {quote.contact && <DRow k="Phone" v={`+91 ${quote.contact}`} big />}
+                  {quote.email && <DRow k="Email" v={quote.email} big />}
                   {quote.contactMethod && <DRow k="Preferred channel" v={quote.contactMethod} />}
                   {quote.pincode && <DRow k="Pincode" v={quote.pincode} />}
                 </div>
@@ -1707,11 +1707,11 @@ function PagerBtn({ disabled, onClick, children }) {
   );
 }
 
-function DRow({ k, v }) {
+function DRow({ k, v, big }) {
   return (
     <div className="flex items-center justify-between border-b border-slate-100 py-2.5 text-sm">
       <span className="text-slate-500">{k}</span>
-      <span className="font-semibold capitalize text-slate-800">{v}</span>
+      <span className={big ? "text-base font-bold text-slate-900" : "font-semibold capitalize text-slate-800"}>{v}</span>
     </div>
   );
 }
