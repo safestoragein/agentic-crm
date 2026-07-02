@@ -2,17 +2,18 @@
 import { appHref } from "@/lib/paths";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, UserPlus, ArrowRight, AlertTriangle, Info } from "lucide-react";
 import { createCustomer } from "@/lib/customer";
-import { fetchCustomerFilters, fetchCustomers } from "@/lib/customers";
+import { fetchCustomerFilters, fetchCustomers, fetchWarehouseForDistance } from "@/lib/customers";
 import { getSession } from "@/lib/auth";
 import PlacesAutocompleteInput from "@/components/PlacesAutocompleteInput";
 
 const INITIALS = ["Mr", "Mrs", "Ms", "M/S"];
 const FLOORS = ["ground", "1", "2", "3", "4", "5", "6-10", ">10"];
 const LIFTS = ["Available", "Not Available"];
+const INTERCITY_THRESHOLD_KM = 65; // pickup ≥ this from the warehouse → intercity
 
 export default function CreateQuotationPage() {
   const router = useRouter();
@@ -35,6 +36,36 @@ export default function CreateQuotationPage() {
   const [existInfo, setExistInfo] = useState(null);
   const [existName, setExistName] = useState("");
   const [checking, setChecking] = useState(false);
+  const [pickupLoc, setPickupLoc] = useState({ lat: null, lng: null });
+  const [dist, setDist] = useState(null); // { km, intercity, warehouse } | { error:true } | null
+
+  // Warehouse → pickup driving distance (Google DistanceMatrix), so the team sees
+  // whether the quote is intercity — mirrors the legacy add_customer form.
+  const runDistance = useCallback(async (lat, lng, citySlug) => {
+    setDist(null);
+    if (!lat || !lng || !citySlug || !window.google?.maps) return;
+    try {
+      const res = await fetchWarehouseForDistance(citySlug);
+      if (res?.status !== "success" || !res.origin) { setDist({ error: true }); return; }
+      const svc = new window.google.maps.DistanceMatrixService();
+      svc.getDistanceMatrix(
+        {
+          origins: [res.origin],
+          destinations: [new window.google.maps.LatLng(lat, lng)],
+          travelMode: window.google.maps.TravelMode.DRIVING,
+          unitSystem: window.google.maps.UnitSystem.METRIC,
+        },
+        (response, status) => {
+          const el = response?.rows?.[0]?.elements?.[0];
+          if (status !== "OK" || !el || el.status !== "OK") { setDist(null); return; }
+          const km = el.distance.value / 1000;
+          setDist({ km, intercity: km >= INTERCITY_THRESHOLD_KM, warehouse: res.warehouse_name || "" });
+        }
+      );
+    } catch {
+      setDist(null);
+    }
+  }, []);
 
   // The moment the rep finishes the phone field, check if a customer with that
   // number already exists (read-only search) and surface a link to open them —
@@ -67,6 +98,14 @@ export default function CreateQuotationPage() {
     return () => ctrl.abort();
   }, []);
 
+  // Recompute the distance when the city changes (if a pickup point is already set).
+  useEffect(() => {
+    if (pickupLoc.lat && pickupLoc.lng && form.customer_local_city) {
+      runDistance(pickupLoc.lat, pickupLoc.lng, form.customer_local_city);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.customer_local_city]);
+
   const set = (k, v) => {
     setForm((p) => ({ ...p, [k]: v }));
     setError("");
@@ -75,9 +114,16 @@ export default function CreateQuotationPage() {
   };
 
   const validate = () => {
+    if (!form.customer_initial) return "Please select a title.";
     if (!form.customer_name.trim()) return "Please enter the customer name.";
     if (!/^\d{10}$/.test(form.customer_contact1.trim())) return "Please enter a valid 10-digit phone number.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customer_email.trim())) return "Please enter a valid email address.";
     if (!form.customer_local_city) return "Please select the city.";
+    if (!form.relationship_manager_id) return "Please assign a CRM user.";
+    if (!form.pickup_address.trim()) return "Please enter the pickup address.";
+    if (!form.pickup_floor) return "Please select the pickup floor.";
+    if (!form.pickup_lift) return "Please select the lift option.";
+    if (!(Number(form.storage_month) >= 1)) return "Please enter the storage duration in months.";
     return "";
   };
 
@@ -96,6 +142,11 @@ export default function CreateQuotationPage() {
         warehouse_arrival: form.warehouse_arrival ? "1" : "",
         storage_type: "household_storage",
         created_by: session?.user_id || "",
+        // Warehouse→pickup distance + intercity flag (same as the legacy add_customer).
+        pickup_lat: pickupLoc.lat || "",
+        pickup_lang: pickupLoc.lng || "",
+        pickup_distance_km: dist && !dist.error ? dist.km.toFixed(2) : "",
+        is_intercity_quote: dist && !dist.error && dist.intercity ? "1" : "0",
       });
       if (r?.status === "success" && r?.customer_id) {
         router.push(`/customer/${r.customer_id}/new-quotation`);
@@ -142,7 +193,7 @@ export default function CreateQuotationPage() {
           <h2 className="text-sm font-bold text-slate-800">Customer details</h2>
         </div>
         <div className="grid gap-4 p-5 sm:grid-cols-2">
-          <Field label="Title">
+          <Field label="Title" required>
             <select value={form.customer_initial} onChange={(e) => set("customer_initial", e.target.value)} className={inputCls}>
               {INITIALS.map((i) => (
                 <option key={i} value={i}>
@@ -179,7 +230,7 @@ export default function CreateQuotationPage() {
               </p>
             )}
           </Field>
-          <Field label="Email">
+          <Field label="Email" required>
             <input value={form.customer_email} onChange={(e) => set("customer_email", e.target.value)} className={inputCls} placeholder="name@example.com" type="email" />
           </Field>
           <Field label="City" required>
@@ -192,7 +243,7 @@ export default function CreateQuotationPage() {
               ))}
             </select>
           </Field>
-          <Field label="Assigned CRM user">
+          <Field label="Assigned CRM user" required>
             <select value={form.relationship_manager_id} onChange={(e) => set("relationship_manager_id", e.target.value)} className={inputCls}>
               <option value="">Unassigned</option>
               {opts.crm_users.map((u) => (
@@ -203,16 +254,31 @@ export default function CreateQuotationPage() {
             </select>
           </Field>
           <div className="sm:col-span-2">
-            <Field label="Pickup address">
+            <Field label="Pickup address" required>
               <PlacesAutocompleteInput
                 value={form.pickup_address}
                 onChange={(v) => set("pickup_address", v)}
+                onPlace={({ address, lat, lng }) => {
+                  if (address) set("pickup_address", address);
+                  setPickupLoc({ lat, lng });
+                  runDistance(lat, lng, form.customer_local_city);
+                }}
                 className={inputCls}
                 placeholder="Start typing building name, area, city…"
               />
+              {dist && (
+                dist.error ? (
+                  <p className="mt-1.5 text-xs font-semibold text-rose-600">No warehouse found for the selected city to compute distance.</p>
+                ) : (
+                  <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-semibold ${dist.intercity ? "text-rose-600" : "text-slate-700"}`}>
+                    {dist.intercity && <AlertTriangle className="h-4 w-4 shrink-0" />}
+                    Distance from warehouse {dist.warehouse} is {dist.km.toFixed(1)} km.{dist.intercity ? " It will come under intercity." : ""}
+                  </p>
+                )
+              )}
             </Field>
           </div>
-          <Field label="Pickup floor">
+          <Field label="Pickup floor" required>
             <select value={form.pickup_floor} onChange={(e) => set("pickup_floor", e.target.value)} className={inputCls}>
               <option value="">Select floor</option>
               {FLOORS.map((f) => (
@@ -222,7 +288,7 @@ export default function CreateQuotationPage() {
               ))}
             </select>
           </Field>
-          <Field label="Lift">
+          <Field label="Lift" required>
             <select value={form.pickup_lift} onChange={(e) => set("pickup_lift", e.target.value)} className={inputCls}>
               <option value="">Select</option>
               {LIFTS.map((l) => (
@@ -232,7 +298,7 @@ export default function CreateQuotationPage() {
               ))}
             </select>
           </Field>
-          <Field label="Storage duration (months)">
+          <Field label="Storage duration (months)" required>
             <input
               value={form.storage_month}
               onChange={(e) => set("storage_month", e.target.value.replace(/\D/g, ""))}

@@ -111,12 +111,6 @@ function AiAnalyticsPageInner() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-600 text-white shadow-sm">
-              <Sparkles className="h-5 w-5" />
-            </span>
-            AI Analytics
-          </h1>
           <p className="mt-1 text-sm text-slate-500">Your speed-to-lead, best-connect window and coaching — from your live pipeline.</p>
         </div>
         <button

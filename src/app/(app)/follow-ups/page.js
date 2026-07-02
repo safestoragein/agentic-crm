@@ -38,6 +38,8 @@ import { scoreQuote } from "@/lib/scoring";
 import { fetchHouseholdLeads } from "@/lib/leads";
 import FollowUpModal from "@/components/FollowUpModal";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
+import DateFilter from "@/components/DateFilter";
+import QuoteTable from "@/components/QuoteTable";
 import QuoteCard from "@/components/QuoteCard";
 
 // A rep's focused follow-up queue: overdue → due-today → upcoming, with one-tap
@@ -48,6 +50,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 export default function FollowUpsPage() {
   const [mode, setMode] = useState("quotations"); // "quotations" | "leads"
+  const [tableView, setTableView] = useState(false); // cards | table (quotations mode)
   const [quotes, setQuotes] = useState(null); // full mapped quotations (mapQuotationRow), like /quotations
   const [cohort, setCohort] = useState(null); // dashboard-sourced rows for ?view=
   const [leads, setLeads] = useState(null);
@@ -60,6 +63,7 @@ export default function FollowUpsPage() {
   const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState(() => ymd()); // today by default
   const [to, setTo] = useState(() => ymd());
+  const handleDateChange = useCallback((r) => { setFrom(r.from); setTo(r.to); }, []);
   const [city, setCity] = useState("");
   const [status, setStatus] = useState(""); // follow_up status filter (RNR, Contacted, …)
   const [sort, setSort] = useState("booking"); // default: highest booking probability first (same as /quotations)
@@ -293,12 +297,6 @@ export default function FollowUpsPage() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-              <CalendarClock className="h-5 w-5" />
-            </span>
-            Follow-ups
-          </h1>
           <p className="mt-1 text-sm text-slate-500">
             {mode === "leads" ? "Your lead follow-ups" : "Your quotation follow-ups"} — overdue first, then due today. One tap to call or WhatsApp.
           </p>
@@ -368,18 +366,7 @@ export default function FollowUpsPage() {
 
       {/* follow-up date range filter — hidden while a cohort view is active */}
       <div className={`mt-4 flex flex-wrap items-center gap-2 ${view ? "hidden" : ""}`}>
-        <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50/50 px-3 py-1.5 ring-1 ring-indigo-200">
-          <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-            <CalendarClock className="h-3 w-3" /> Date
-          </span>
-          <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none" />
-          <span className="text-xs text-slate-400">to</span>
-          <input type="date" value={to} min={from} max={ymd()} onChange={(e) => setTo(e.target.value)} className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none" />
-        </div>
-        <Preset active={from === shiftDate(ymd(), -6) && to === ymd()} onClick={() => { setFrom(shiftDate(ymd(), -6)); setTo(ymd()); }}>Last 7 days</Preset>
-        <Preset active={from === ymd() && to === ymd()} onClick={() => { setFrom(ymd()); setTo(ymd()); }}>Today</Preset>
-        <Preset active={from === shiftDate(ymd(), -1) && to === shiftDate(ymd(), -1)} onClick={() => { const y = shiftDate(ymd(), -1); setFrom(y); setTo(y); }}>Yesterday</Preset>
-        <span className="hidden text-xs text-slate-400 lg:inline">Follow-ups due {fmtDate(from)} – {fmtDate(to)}</span>
+        <DateFilter onChange={handleDateChange} defaultPreset="today" />
         <span className="flex-1" />
         {statuses.length > 0 && (
           <div className={`relative inline-flex items-center rounded-xl border ${status ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"}`}>
@@ -448,6 +435,10 @@ export default function FollowUpsPage() {
                 <option value="id">Quote ID</option>
               </select>
             </label>
+            <div className="flex overflow-hidden rounded-lg border border-slate-200">
+              <button onClick={() => setTableView(false)} className={`px-3 py-2 text-xs font-semibold transition-colors ${!tableView ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>Cards</button>
+              <button onClick={() => setTableView(true)} className={`px-3 py-2 text-xs font-semibold transition-colors ${tableView ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>Table</button>
+            </div>
           </>
         )}
       </div>
@@ -467,6 +458,11 @@ export default function FollowUpsPage() {
 
       {/* Quotations mode — rich cards (same design + data as /quotations) */}
       {mode !== "leads" ? (
+        tableView && data && quoteRows.length > 0 ? (
+          <div className="mt-4">
+            <QuoteTable rows={quoteRows} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} />
+          </div>
+        ) : (
         <div className="mt-4 space-y-3">
           {!data && (
             <div className="rounded-xl border border-slate-200 bg-white py-16 text-center">
@@ -497,6 +493,7 @@ export default function FollowUpsPage() {
             />
           ))}
         </div>
+        )
       ) : (
       /* Leads mode — table */
       <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -773,11 +770,6 @@ function daysBetween(fromYmd, toYmd) {
   const b = new Date(toYmd + "T00:00:00").getTime();
   return Math.round((b - a) / 86400000);
 }
-function shiftDate(ymdStr, days) {
-  const d = new Date((ymdStr || ymd()) + "T00:00:00");
-  d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
 
 // Prettify a follow_up status key for the filter dropdown (e.g. "no-answer" →
 // "No answer", "rnr" → "RNR").
@@ -789,18 +781,6 @@ function prettyStatus(s) {
     .replace(/\bOtp\b/gi, "OTP");
 }
 
-function Preset({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-        active ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 function prettyStorage(s) {
   if (!s) return "";
   return String(s).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

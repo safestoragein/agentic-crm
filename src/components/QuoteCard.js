@@ -31,7 +31,7 @@ function slaSeverity(mins) {
 }
 
 /* ----------------------------- Quote card ----------------------------- */
-export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, breachMins, compact, onLogActivity, onQuickFollowUp }) {
+export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, breachMins, compact, hideValue, onLogActivity, onQuickFollowUp }) {
   const nba = nextAction(q, esc);
   const st = stageBadge(q.stage || q.status);
   const [share, setShare] = useState("idle"); // idle | sending | sent | error
@@ -65,32 +65,44 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
       ? "border-rose-400 bg-rose-100"
       : sev === 1
       ? "border-rose-300 bg-rose-50"
-      : "border-slate-200 bg-white hover:border-slate-300";
+      : "border-slate-300 bg-white hover:border-indigo-400";
   const sevBadge = sev === 3 ? "bg-rose-700" : sev === 2 ? "bg-rose-600" : "bg-rose-500";
   return (
-    <div className={`rounded-xl border border-l-4 ${accent} ${cardBg} p-4 shadow-sm transition-colors`}>
+    <div className={`rounded-xl border-2 border-l-4 ${accent} ${cardBg} p-4 shadow-md transition-colors`}>
+      {/* Top strip — CRM rep (left) · created (right) */}
+      <div className="-mt-1.5 mb-1 flex items-center justify-between gap-2">
+        {q.rep ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700" title="CRM user · relationship manager">
+            <UserRound className="h-3 w-3" /> {q.rep}
+          </span>
+        ) : (
+          <span />
+        )}
+        <span className="shrink-0 whitespace-nowrap text-xs text-slate-400">Created {fmtDateTime(q.createdAt)}</span>
+      </div>
+
       {/* Header: full-width identity */}
       <div className="flex items-start gap-3">
         <Avatar name={q.name} large />
         <div className="min-w-0 flex-1">
           {/* Line 1 — name · phone · email + id/badges */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <span className="text-xl font-bold tracking-tight text-slate-900">{q.name}</span>
+            <span className="text-lg font-bold tracking-tight text-slate-900">{q.name}</span>
             {q.contact && (
               <>
                 <span className="text-slate-300">·</span>
-                <span className="text-lg font-bold tabular-nums text-slate-900">+91 {q.contact}</span>
+                <span className="text-base font-bold tabular-nums text-slate-900">+91 {q.contact}</span>
               </>
             )}
             {q.email && (
               <>
                 <span className="text-slate-300">·</span>
-                <a href={`mailto:${q.email}`} className="inline-flex items-center gap-1.5 text-lg font-bold text-slate-900 hover:text-indigo-600" title={q.email}>
-                  <Mail className="h-4 w-4 text-slate-400" /> {q.email}
+                <a href={`mailto:${q.email}`} className="text-base font-bold text-slate-900 hover:text-indigo-600" title={q.email}>
+                  {q.email}
                 </a>
               </>
             )}
-            <span className="text-xs font-medium text-slate-400">{q.uid}</span>
+            <span className="text-xs font-bold text-slate-600">{q.uid}</span>
             {breach && (
               <span className={`inline-flex animate-pulse items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-white ${sevBadge}`}>
                 <AlertTriangle className="h-3 w-3" /> {sev === 3 ? "CRITICAL" : sev === 2 ? "URGENT" : "SLA"} {breachMins}m
@@ -115,31 +127,22 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
 
           {/* Line 2 — location */}
           {(q.city || q.pickupAddress) && (
-            <div className="mt-1.5 flex items-start gap-1.5 text-sm text-slate-500">
-              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
-              <span className="min-w-0">
+            <div className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
+              <MapPin className="h-4 w-4 shrink-0 text-indigo-400" />
+              <span className="min-w-0 truncate" title={[q.city, q.pickupAddress].filter(Boolean).join(" — ")}>
                 {q.city && <span className="font-semibold capitalize text-slate-700">{q.city}</span>}
                 {q.city && q.pickupAddress && <span className="text-slate-400"> — </span>}
-                {q.pickupAddress && <span className="line-clamp-2" title={q.pickupAddress}>{q.pickupAddress}</span>}
+                {q.pickupAddress && <span className="font-medium text-slate-900">{q.pickupAddress}</span>}
               </span>
             </div>
           )}
 
-          {/* Line 3 — rep · created · value */}
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-slate-500">
-            {q.rep && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700" title="CRM user · relationship manager">
-                <UserRound className="h-3 w-3" /> {q.rep}
-              </span>
-            )}
-            <span>Created {fmtDateTime(q.createdAt)}</span>
-            {fmtMoney(q.value) !== "—" && (
-              <>
-                <span className="text-slate-300">·</span>
-                <span className="font-semibold text-slate-700">{fmtMoney(q.value)}</span>
-              </>
-            )}
-          </div>
+          {/* Line 3 — value */}
+          {!hideValue && fmtMoney(q.value) !== "—" && (
+            <div className="mt-1.5 text-xs text-slate-500">
+              <span className="font-semibold text-slate-700">{fmtMoney(q.value)}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -221,7 +224,7 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
 
       {/* Inline lifecycle */}
       {!compact && life && (
-        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-4">
+        <div className="mt-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
           <LifecycleStepper lifecycle={life} showLegend={false} wh={wh} />
         </div>
       )}
@@ -385,14 +388,14 @@ function LifecycleStepper({ lifecycle, showLegend = true, wh }) {
   const whInfo = wh?.warehouseStatus ? emailStatusInfo(wh.warehouseStatus) : null;
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs font-bold uppercase tracking-wide text-orange-600">Lifecycle</span>
-          <span className="text-sm text-slate-500">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-orange-600">Lifecycle</span>
+          <span className="text-[11px] text-slate-500">
             Step {furthest + 1} of {total} — <span className="font-semibold text-slate-700">{current?.label}</span>
           </span>
         </div>
-        <span className="text-sm font-bold text-slate-400">{furthest + 1}/{total}</span>
+        <span className="text-[11px] font-bold text-slate-400">{furthest + 1}/{total}</span>
       </div>
 
       <div className="flex items-start">
@@ -409,33 +412,33 @@ function LifecycleStepper({ lifecycle, showLegend = true, wh }) {
               {/* node row: left connector · node · right connector */}
               <div className="flex w-full items-center">
                 <span
-                  className={`h-1 flex-1 rounded-full ${i === 0 ? "opacity-0" : leftReached ? toneOf(steps[i - 1].tone).line : "bg-slate-200"}`}
+                  className={`h-0.5 flex-1 rounded-full ${i === 0 ? "opacity-0" : leftReached ? toneOf(steps[i - 1].tone).line : "bg-slate-200"}`}
                 />
                 <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white ${
-                    isCurrent ? `${t.dot} ring-4 ${t.ring}` : isDone ? t.dot : "bg-white text-slate-300 ring-2 ring-slate-200"
+                  className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
+                    isCurrent ? `${t.dot} ring-[3px] ${t.ring}` : isDone ? t.dot : "bg-white text-slate-300 ring-2 ring-slate-200"
                   }`}
                 >
                   {isDone ? "✓" : isCurrent ? "●" : ""}
                 </span>
                 <span
-                  className={`h-1 flex-1 rounded-full ${last ? "opacity-0" : rightReached ? t.line : "bg-slate-200"}`}
+                  className={`h-0.5 flex-1 rounded-full ${last ? "opacity-0" : rightReached ? t.line : "bg-slate-200"}`}
                 />
               </div>
               {/* label + sublabel under the node */}
-              <div className="mt-2.5 px-1 text-center">
+              <div className="mt-1.5 px-1 text-center">
                 <div
-                  className={`text-xs leading-tight ${
+                  className={`text-[11px] leading-tight ${
                     isCurrent ? `font-bold ${t.text}` : isDone ? "font-semibold text-slate-700" : "text-slate-400"
                   }`}
                 >
                   {s.label}
                 </div>
                 {s.at && (isDone || isCurrent) && (
-                  <div className="mt-1 text-[11px] leading-tight text-slate-400">{fmtDateTime(s.at)}</div>
+                  <div className="mt-0.5 text-[10px] leading-tight text-slate-400">{fmtDateTime(s.at)}</div>
                 )}
                 {s.note && (isDone || isCurrent) && (
-                  <div className={`mt-1 inline-block rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold ${t.text}`}>
+                  <div className={`mt-0.5 inline-block rounded bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold ${t.text}`}>
                     {s.note}
                   </div>
                 )}

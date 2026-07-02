@@ -195,12 +195,6 @@ export default function ProductivityPage() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-700 text-white shadow-sm">
-              <Activity className="h-5 w-5" />
-            </span>
-            {isAdmin ? "Rep productivity" : "My productivity"}
-          </h1>
           <p className="mt-1 text-sm text-slate-500">
             {repName ? <span className="font-semibold text-slate-700">{repName}</span> : "—"} · login &amp; idle time,
             time-to-first-follow-up and the full action timeline for the day.

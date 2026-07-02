@@ -29,6 +29,7 @@ import { getSession } from "@/lib/auth";
 import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
 import QuoteCard from "@/components/QuoteCard";
+import QuoteTable from "@/components/QuoteTable";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import AdminOnly from "@/components/AdminOnly";
 
@@ -66,6 +67,7 @@ function RnrAnalyticsPageInner() {
   const [loading, setLoading] = useState(false);
   const [scope, setScope] = useState("team"); // "team" | "mine"
   const [city, setCity] = useState("");
+  const [tableView, setTableView] = useState(false); // cards | table
   const [sort, setSort] = useState("booking");
   // Engagement maps (same sources as /quotations) — power the rich card badges.
   const [emailStatus, setEmailStatus] = useState({});
@@ -330,12 +332,6 @@ function RnrAnalyticsPageInner() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm">
-              <PhoneOff className="h-5 w-5" />
-            </span>
-            RNR Analytics
-          </h1>
           <p className="mt-1 text-sm text-slate-500">Why is RNR high — by hour, source, agent and attempts — and who to reassign.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -385,6 +381,10 @@ function RnrAnalyticsPageInner() {
             </option>
           ))}
         </FilterSelect>
+        <div className="flex overflow-hidden rounded-lg border border-slate-200">
+          <button onClick={() => setTableView(false)} className={`px-3 py-2 text-xs font-semibold transition-colors ${!tableView ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>Cards</button>
+          <button onClick={() => setTableView(true)} className={`px-3 py-2 text-xs font-semibold transition-colors ${tableView ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>Table</button>
+        </div>
         {loading && <Loader2 className="h-4 w-4 animate-spin text-rose-500" />}
         <span className="flex-1" />
         <span className="text-xs text-slate-400">
@@ -453,6 +453,7 @@ function RnrAnalyticsPageInner() {
               bookingSignals={bookingSignals}
               waStatus={waStatus}
               onQuickFollowUp={setFollowUpFor}
+              tableView={tableView}
             />
           </Panel>
 
@@ -665,10 +666,13 @@ const CANDIDATE_CAP = 50;
 // Same rich card as /quotations, one per shuffle candidate. Attempts/RNR signals
 // surface via the card's RNR badge + note; the card itself carries booking %,
 // lifecycle, OTP, email/WhatsApp status and the next-best-action.
-function CandidateCards({ rows, escMap, bookingMap, lifecycleMap, emailStatus, otpIds, bookingSignals, waStatus, onQuickFollowUp }) {
+function CandidateCards({ rows, escMap, bookingMap, lifecycleMap, emailStatus, otpIds, bookingSignals, waStatus, onQuickFollowUp, tableView }) {
   if (!rows || rows.length === 0)
     return <p className="py-6 text-center text-xs text-slate-400">No RNR customer has hit the attempt threshold. 🎉</p>;
   const shown = rows.slice(0, CANDIDATE_CAP);
+  if (tableView) {
+    return <QuoteTable rows={shown} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} />;
+  }
   return (
     <div className="space-y-3">
       {shown.map((q) => (

@@ -23,6 +23,7 @@ import {
 import { getSession, clearSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/adminAuth";
 import { logEvent, saveLogoutTime } from "@/lib/activity";
+import { fetchNavCounts, fetchLeadsTodayCount } from "@/lib/crm";
 import { useEffect, useState } from "react";
 
 const NAV = [
@@ -30,7 +31,7 @@ const NAV = [
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/quotations", label: "Quotations", icon: FileText },
   { href: "/follow-ups", label: "Follow-ups", icon: CalendarClock },
-  { href: "/blank-followups", label: "Blank Follow-ups", icon: CalendarX },
+  { href: "/blank-followups", label: "Blank / Overdue Follow-ups", icon: CalendarX },
   { href: "/customers", label: "Manage Customers", icon: UserCog },
   { href: "/booking-report", label: "Booking Report", icon: BarChart3 },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
@@ -52,8 +53,24 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState(null);
+  // Live "today" counts shown as nav badges, keyed by href. Per logged-in rep.
+  const [badges, setBadges] = useState({});
 
-  useEffect(() => setSession(getSession()), []);
+  useEffect(() => {
+    const s = getSession();
+    setSession(s);
+    if (!s || isAdmin(s)) return; // admins use the team nav (no per-rep counts)
+    const ctrl = new AbortController();
+    // Fast bundle → quotations / follow-ups / blank / booking-report / logs.
+    fetchNavCounts(s.user_id, { signal: ctrl.signal })
+      .then((counts) => setBadges((b) => ({ ...b, ...counts })))
+      .catch(() => {});
+    // Leads is a heavy separate fetch, so its badge fills in independently.
+    fetchLeadsTodayCount(s.user_id, { signal: ctrl.signal })
+      .then((n) => setBadges((b) => ({ ...b, "/leads": n })))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, []);
 
   const fname = session?.user_fname || "User";
   const initials = fname.slice(0, 2).toUpperCase();
@@ -91,6 +108,14 @@ export default function Sidebar() {
             >
               <Icon className={`h-4.5 w-4.5 ${active ? "text-indigo-600" : "text-slate-400"}`} />
               {label}
+              {badges[href] > 0 && (
+                <span
+                  title={`${badges[href]} due today`}
+                  className="ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm ring-2 ring-rose-100"
+                >
+                  {badges[href]}
+                </span>
+              )}
             </Link>
           );
         })}

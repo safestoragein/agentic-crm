@@ -2,8 +2,9 @@
 import { appHref } from "@/lib/paths";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock, AlertTriangle, CalendarDays, UserRound } from "lucide-react";
+import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock, AlertTriangle, UserRound } from "lucide-react";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
+import DateFilter from "@/components/DateFilter";
 import { getSession } from "@/lib/auth";
 import { ymd, normStatus } from "@/lib/crm";
 import { fetchHouseholdLeads, addHouseholdLead, fetchCrmUsers, transferLeads } from "@/lib/leads";
@@ -65,6 +66,7 @@ export default function LeadsPage() {
   const [verified, setVerified] = useState("");
   const [from, setFrom] = useState(() => ymd()); // default: today
   const [to, setTo] = useState(() => ymd());
+  const handleDateChange = useCallback((r) => { setFrom(r.from); setTo(r.to); }, []);
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [reps, setReps] = useState([]);
@@ -172,12 +174,6 @@ export default function LeadsPage() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-              <Users className="h-5 w-5" />
-            </span>
-            Leads
-          </h1>
           <p className="mt-1 text-sm text-slate-500">Your household, business & document leads not yet converted to a quote. Showing today by default — change the date range to see more.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -218,20 +214,7 @@ export default function LeadsPage() {
         <FilterSelect value={source} onChange={setSource} options={SOURCES} />
         <FilterSelect value={followUp} onChange={setFollowUp} options={FOLLOWUPS} />
         <FilterSelect value={verified} onChange={setVerified} options={VERIFIED} />
-        <div className="inline-flex items-center gap-2 rounded-xl border border-indigo-300 bg-indigo-50/50 px-2 py-1 text-xs ring-1 ring-indigo-200">
-          <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-            <CalendarDays className="h-3 w-3" /> Date
-          </span>
-          <label className="inline-flex items-center gap-1 text-slate-500">
-            <span className="font-semibold">From</span>
-            <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="bg-transparent text-slate-700 focus:outline-none" />
-          </label>
-          <span className="text-slate-300">–</span>
-          <label className="inline-flex items-center gap-1 text-slate-500">
-            <span className="font-semibold">To</span>
-            <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="bg-transparent text-slate-700 focus:outline-none" />
-          </label>
-        </div>
+        <DateFilter onChange={handleDateChange} defaultPreset="today" />
         <span className="flex-1" />
         <span className="text-xs text-slate-400">{list ? `${rows.length.toLocaleString("en-IN")} leads` : "Loading…"}</span>
         <div className="relative min-w-56 sm:max-w-xs">

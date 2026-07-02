@@ -142,11 +142,7 @@ export default function BookingReportPage() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white">
-            <BarChart3 className="h-6 w-6" />
-          </span>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Booking Report</h1>
             <p className="text-sm text-slate-500">Leads, quotations, bookings &amp; pickups · {range.label}</p>
           </div>
         </div>

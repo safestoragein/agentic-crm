@@ -45,7 +45,8 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { API_BASE } from "@/lib/api";
-import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra } from "@/lib/customer";
+import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra, saveOrderNote } from "@/lib/customer";
+import { getSession } from "@/lib/auth";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { scoreCustomer, auditFollowup, contactSecs, TIER_STYLE } from "@/lib/leadScore";
 import CustomerDetailsForm from "@/components/CustomerDetailsForm";
@@ -1506,6 +1507,38 @@ function AccountLoginCard({ account, nextBill, isZoho }) {
 
 /* ----------------------------- Work Orders ----------------------------- */
 function WorkOrdersTab({ orders, loading, error }) {
+  const [noteFor, setNoteFor] = useState(null); // order being edited
+  const [noteText, setNoteText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+  const [savedNotes, setSavedNotes] = useState({}); // order_id -> latest note (optimistic)
+
+  const noteOf = (o) => (savedNotes[o.order_id] !== undefined ? savedNotes[o.order_id] : o.customer_notes || "");
+  const openNote = (o) => {
+    setSaveErr("");
+    setNoteFor(o);
+    setNoteText(noteOf(o));
+  };
+  const saveNote = async () => {
+    if (!noteFor || saving) return;
+    setSaving(true);
+    setSaveErr("");
+    try {
+      const session = getSession();
+      const res = await saveOrderNote({ orderId: noteFor.order_id, notes: noteText, createdBy: session?.user_id });
+      if (res?.status === "success") {
+        setSavedNotes((m) => ({ ...m, [noteFor.order_id]: noteText }));
+        setNoteFor(null);
+      } else {
+        setSaveErr("Couldn't save the note. Please try again.");
+      }
+    } catch {
+      setSaveErr("Couldn't save the note. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <Panel icon={ClipboardList} title="Work orders" count={orders.length}>
       {error ? (
@@ -1528,28 +1561,75 @@ function WorkOrdersTab({ orders, loading, error }) {
                 <Th className="hidden md:table-cell">Manager</Th>
                 <Th className="hidden lg:table-cell">Supervisor</Th>
                 <Th>Intercity</Th>
+                <Th>Customer notes</Th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((o) => (
-                <tr key={o.order_id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
-                  <td className="whitespace-nowrap px-4 py-2.5 font-semibold text-indigo-600">WO{o.order_id}</td>
-                  <td className="px-4 py-2.5 capitalize text-slate-700">{prettyWords(o.order_sub_type || o.order_type)}</td>
-                  <td className="px-4 py-2.5">{orderStatus(o.order_status)}</td>
-                  <td className="hidden whitespace-nowrap px-4 py-2.5 text-slate-600 sm:table-cell">{fmtDate(o.schedule_date)}</td>
-                  <td className="hidden px-4 py-2.5 text-slate-600 md:table-cell">{o.manager || "—"}</td>
-                  <td className="hidden px-4 py-2.5 text-slate-600 lg:table-cell">{o.supervisor || "—"}</td>
-                  <td className="px-4 py-2.5">
-                    {String(o.is_intercity) === "1" ? (
-                      <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700">Yes</span>
-                    ) : (
-                      <span className="text-xs text-slate-400">No</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {orders.map((o) => {
+                const note = noteOf(o);
+                return (
+                  <tr key={o.order_id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/60">
+                    <td className="whitespace-nowrap px-4 py-2.5 font-semibold text-indigo-600">WO{o.order_id}</td>
+                    <td className="px-4 py-2.5 capitalize text-slate-700">{prettyWords(o.order_sub_type || o.order_type)}</td>
+                    <td className="px-4 py-2.5">{orderStatus(o.order_status)}</td>
+                    <td className="hidden whitespace-nowrap px-4 py-2.5 text-slate-600 sm:table-cell">{fmtDate(o.schedule_date)}</td>
+                    <td className="hidden px-4 py-2.5 text-slate-600 md:table-cell">{o.manager || "—"}</td>
+                    <td className="hidden px-4 py-2.5 text-slate-600 lg:table-cell">{o.supervisor || "—"}</td>
+                    <td className="px-4 py-2.5">
+                      {String(o.is_intercity) === "1" ? (
+                        <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[11px] font-semibold text-violet-700">Yes</span>
+                      ) : (
+                        <span className="text-xs text-slate-400">No</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <button
+                        onClick={() => openNote(o)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition-colors hover:bg-indigo-100"
+                      >
+                        <StickyNote className="h-3.5 w-3.5" /> {note ? "Edit Notes" : "Add Notes"}
+                      </button>
+                      {note && (
+                        <div className="mt-1 max-w-[220px] line-clamp-2 text-[11px] text-slate-500" title={note}>{note}</div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Add / edit note modal */}
+      {noteFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={() => !saving && setNoteFor(null)}>
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <StickyNote className="h-4 w-4 text-indigo-600" /> Customer notes · WO{noteFor.order_id}
+              </h3>
+              <button onClick={() => !saving && setNoteFor(null)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="px-5 py-4">
+              <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-slate-400">Notes</label>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={4}
+                autoFocus
+                placeholder="Enter notes…"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
+              />
+              {saveErr && <p className="mt-2 text-xs font-medium text-rose-600">{saveErr}</p>}
+            </div>
+            <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
+              <button onClick={() => setNoteFor(null)} disabled={saving} className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">Close</button>
+              <button onClick={saveNote} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-60">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Save
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </Panel>

@@ -65,6 +65,16 @@ export async function updateAccountInfo(customerId, email, { signal } = {}) {
   return apiPostForm("update_account_info", { customer_id: customerId, email }, { signal, module: MOD });
 }
 
+// Save the per-work-order customer note (Work orders → Add Notes). Mirrors the
+// legacy customer/save_customer_note — updates ss_order.customer_notes + logs it.
+export async function saveOrderNote({ orderId, notes, createdBy }, { signal } = {}) {
+  return apiPostForm(
+    "save_customer_note",
+    { order_id: orderId, notes, created_by: createdBy || "" },
+    { signal, module: MOD }
+  );
+}
+
 // Quotation vs warehouse comparison (items, charges, increased/decreased diffs).
 export async function fetchQuoteVsWarehouse(quotationId, { signal } = {}) {
   const p = await apiGet(`get_both_quotation_order_items?quotation_id=${encodeURIComponent(quotationId)}`, {

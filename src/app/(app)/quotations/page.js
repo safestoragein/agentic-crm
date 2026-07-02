@@ -69,12 +69,15 @@ import { runDailyFollowupWhatsapp } from "@/lib/whatsapp";
 import DateFilter from "@/components/DateFilter";
 import FollowUpModal from "@/components/FollowUpModal";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
+import QuoteTable from "@/components/QuoteTable";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PAGE_SIZE = 50;
 
 const TABS = [
   { key: "all", label: "All", test: () => true },
+  // Same set as All (respects the date filter), but newest-created always on top.
+  { key: "new", label: "New", newest: true, test: () => true },
   { key: "exceptions", label: "Exceptions", red: true, exceptions: true },
   { key: "overdue", label: "Overdue follow-up", red: true, test: (q) => q.bucket === "overdue" && !q.done },
   { key: "not_contacted", label: "Not contacted", red: true, test: (q) => !q.contacted && !q.done },
@@ -93,7 +96,8 @@ export default function QuotationsPage() {
   const [status, setStatus] = useState(""); // follow_up status filter
   const [sort, setSort] = useState("booking"); // default: highest booking probability first
   const [page, setPage] = useState(1);
-  const [compact, setCompact] = useState(false);
+  const [view, setView] = useState("comfort"); // comfort | compact | table
+  const compact = view === "compact";
   const [selected, setSelected] = useState(null);
   const [followUpQuote, setFollowUpQuote] = useState(null); // open the log-activity modal
   const [quickFollowFor, setQuickFollowFor] = useState(null); // open the quick follow-up modal
@@ -344,6 +348,8 @@ export default function QuotationsPage() {
         : inRange.filter(tabDef.test);
     if (city) rows = rows.filter((r) => r.city === city);
     if (status) rows = rows.filter((r) => normStatus(r.status) === normStatus(status));
+    // "New" tab: same in-range set, but always newest-created first (overrides sort).
+    if (tabDef.newest) return [...rows].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
     if (sort === "booking") {
       // Highest booking-probability score first.
       return [...rows].sort(
@@ -389,7 +395,6 @@ export default function QuotationsPage() {
     <div className="px-5 py-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight">Quotations</h1>
           <p className="mt-0.5 text-sm text-slate-500">
             {list ? (
               query.trim() ? (
@@ -415,7 +420,6 @@ export default function QuotationsPage() {
           >
             <Plus className="h-4 w-4" /> Create quotation
           </Link>
-          <DateFilter onChange={handleRange} defaultPreset="today" />
         </div>
       </div>
 
@@ -482,24 +486,7 @@ export default function QuotationsPage() {
         })}
       </div>
 
-      {/* City filter — horizontal */}
-      {cities.length > 0 && (
-        <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-slate-400">
-            <MapPin className="h-3.5 w-3.5" /> City
-          </span>
-          <CityChip active={city === ""} onClick={() => setCity("")}>
-            All
-          </CityChip>
-          {cities.map((c) => (
-            <CityChip key={c} active={city === c} onClick={() => setCity(c)}>
-              {c}
-            </CityChip>
-          ))}
-        </div>
-      )}
-
-      {/* Toolbar */}
+      {/* Toolbar — ALL filters in one row: search · date · city · status · sort */}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1 sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -512,6 +499,24 @@ export default function QuotationsPage() {
         </div>
 
         <span className="flex-1" />
+
+        <DateFilter onChange={handleRange} defaultPreset="today" />
+
+        <div className={`relative inline-flex items-center rounded-lg border ${city ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"}`}>
+          <MapPin className={`pointer-events-none absolute left-2.5 h-3.5 w-3.5 ${city ? "text-indigo-500" : "text-slate-400"}`} />
+          <select
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            className={`max-w-[150px] cursor-pointer appearance-none truncate bg-transparent py-1.5 pl-8 pr-3 text-xs font-semibold capitalize focus:outline-none ${city ? "text-indigo-700" : "text-slate-600"}`}
+          >
+            <option value="">All cities</option>
+            {cities.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className={`relative inline-flex items-center rounded-lg border ${status ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white"}`}>
           <Filter className={`pointer-events-none absolute left-2.5 h-3.5 w-3.5 ${status ? "text-indigo-500" : "text-slate-400"}`} />
@@ -548,13 +553,14 @@ export default function QuotationsPage() {
         </label>
 
         <div className="flex overflow-hidden rounded-lg border border-slate-200">
-          <DensityBtn on={!compact} onClick={() => setCompact(false)}>Comfort</DensityBtn>
-          <DensityBtn on={compact} onClick={() => setCompact(true)}>Compact</DensityBtn>
+          <DensityBtn on={view === "comfort"} onClick={() => setView("comfort")}>Comfort</DensityBtn>
+          <DensityBtn on={view === "compact"} onClick={() => setView("compact")}>Compact</DensityBtn>
+          <DensityBtn on={view === "table"} onClick={() => setView("table")}>Table</DensityBtn>
         </div>
       </div>
 
       {/* Lifecycle colour key (shown once for all cards) */}
-      {list && !searchOnly && pageRows.length > 0 && (
+      {list && !searchOnly && view !== "table" && pageRows.length > 0 && (
         <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-2">
           <LifecycleLegend />
         </div>
@@ -578,7 +584,7 @@ export default function QuotationsPage() {
             No quotations match this view.
           </div>
         )}
-        {!searchOnly && pageRows.map((q) => (
+        {!searchOnly && view !== "table" && pageRows.map((q) => (
           <QuoteCard
             key={q.id}
             q={q}
@@ -598,6 +604,13 @@ export default function QuotationsPage() {
           />
         ))}
       </div>
+
+      {/* Table view — same data, tabular (with lifecycle). Shown for all tabs. */}
+      {list && !searchOnly && view === "table" && pageRows.length > 0 && (
+        <div className="mt-3">
+          <QuoteTable rows={pageRows} getBooking={(q) => bookingMap.get(q.id)} getLife={(q) => lifecycleMap.get(q.id)} />
+        </div>
+      )}
 
       {/* Footer / pagination */}
       {list && filtered.length > 0 && (
@@ -724,99 +737,116 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
       ? "border-rose-400 bg-rose-100"
       : sev === 1
       ? "border-rose-300 bg-rose-50"
-      : "border-slate-200 bg-white hover:border-slate-300";
+      : "border-slate-300 bg-white hover:border-indigo-400";
   const sevBadge = sev === 3 ? "bg-rose-700" : sev === 2 ? "bg-rose-600" : "bg-rose-500";
   return (
-    <div className={`rounded-xl border border-l-4 ${accent} ${cardBg} p-4 shadow-sm transition-colors`}>
-      {/* Header: identity + badges + score + actions */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Avatar name={q.name} large />
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-base font-bold text-slate-800">{q.name}</span>
-              <span className="text-[11px] text-slate-400">{q.uid}</span>
-              {breach && (
-                <span className={`inline-flex animate-pulse items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-white ${sevBadge}`}>
-                  <AlertTriangle className="h-3 w-3" /> {sev === 3 ? "CRITICAL" : sev === 2 ? "URGENT" : "SLA"} {breachMins}m
-                </span>
-              )}
-              {otp && (
-                <span title="Mobile OTP verified" className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                  <ShieldCheck className="h-3 w-3" /> OTP
-                </span>
-              )}
-              <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${st.cls}`}>{st.label}</span>
-              {esc?.top && <EscBadge level={esc.level} label={esc.top.label} />}
-              {!esc?.top && q.statusKey === "rnr" && (
-                <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-600">
-                  <PhoneOff className="h-3 w-3" /> RNR
-                </span>
-              )}
-              {!esc?.top && !q.contacted && (
-                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-600">New</span>
-              )}
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
-              <span className="capitalize">{q.city || "—"}</span>
-              <span>·</span>
-              <span className="font-semibold text-slate-700">{fmtMoney(q.value)}</span>
-              {q.contact && (<><span>·</span><span>+91 {q.contact}</span></>)}
-              {q.email && (
-                <>
-                  <span>·</span>
-                  <a href={`mailto:${q.email}`} className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-600" title={q.email}>
-                    <Mail className="h-3 w-3" /> {q.email}
-                  </a>
-                </>
-              )}
-              <span>·</span>
-              <span>{fmtDateTime(q.createdAt)}</span>
-              {q.rep && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-bold text-indigo-700" title="CRM user · relationship manager">
-                  <UserRound className="h-3 w-3" /> {q.rep}
-                </span>
-              )}
-            </div>
-            {(q.city || q.pickupAddress) && (
-              <div className="mt-1 flex items-start gap-1 text-[11px] text-slate-500">
-                <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-indigo-400" />
-                <span className="min-w-0">
-                  {q.city && <span className="font-medium capitalize text-slate-600">{q.city}</span>}
-                  {q.city && q.pickupAddress && <span className="text-slate-400"> · </span>}
-                  {q.pickupAddress && <span className="line-clamp-2" title={q.pickupAddress}>{q.pickupAddress}</span>}
-                </span>
-              </div>
+    <div className={`rounded-xl border-2 border-l-4 ${accent} ${cardBg} p-4 shadow-md transition-colors`}>
+      {/* Top strip — CRM rep (left) · created (right) */}
+      <div className="-mt-1.5 mb-1 flex items-center justify-between gap-2">
+        {q.rep ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-700" title="CRM user · relationship manager">
+            <UserRound className="h-3 w-3" /> {q.rep}
+          </span>
+        ) : (
+          <span />
+        )}
+        <span className="shrink-0 whitespace-nowrap text-xs text-slate-400">Created {fmtDateTime(q.createdAt)}</span>
+      </div>
+
+      {/* Header: full-width identity */}
+      <div className="flex items-start gap-3">
+        <Avatar name={q.name} large />
+        <div className="min-w-0 flex-1">
+          {/* Line 1 — name · phone · email + id/badges */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span className="text-lg font-bold tracking-tight text-slate-900">{q.name}</span>
+            {q.contact && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span className="text-base font-bold tabular-nums text-slate-900">+91 {q.contact}</span>
+              </>
+            )}
+            {q.email && (
+              <>
+                <span className="text-slate-300">·</span>
+                <a href={`mailto:${q.email}`} className="text-base font-bold text-slate-900 hover:text-indigo-600" title={q.email}>
+                  {q.email}
+                </a>
+              </>
+            )}
+            <span className="text-xs font-bold text-slate-600">{q.uid}</span>
+            {breach && (
+              <span className={`inline-flex animate-pulse items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-white ${sevBadge}`}>
+                <AlertTriangle className="h-3 w-3" /> {sev === 3 ? "CRITICAL" : sev === 2 ? "URGENT" : "SLA"} {breachMins}m
+              </span>
+            )}
+            {otp && (
+              <span title="Mobile OTP verified" className="inline-flex items-center gap-1 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                <ShieldCheck className="h-3 w-3" /> OTP
+              </span>
+            )}
+            <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${st.cls}`}>{st.label}</span>
+            {esc?.top && <EscBadge level={esc.level} label={esc.top.label} />}
+            {!esc?.top && q.statusKey === "rnr" && (
+              <span className="inline-flex items-center gap-1 rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-600">
+                <PhoneOff className="h-3 w-3" /> RNR
+              </span>
+            )}
+            {!esc?.top && !q.contacted && (
+              <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-600">New</span>
             )}
           </div>
+
+          {/* Line 2 — location */}
+          {(q.city || q.pickupAddress) && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
+              <MapPin className="h-4 w-4 shrink-0 text-indigo-400" />
+              <span className="min-w-0 truncate" title={[q.city, q.pickupAddress].filter(Boolean).join(" — ")}>
+                {q.city && <span className="font-semibold capitalize text-slate-700">{q.city}</span>}
+                {q.city && q.pickupAddress && <span className="text-slate-400"> — </span>}
+                {q.pickupAddress && <span className="font-medium text-slate-900">{q.pickupAddress}</span>}
+              </span>
+            </div>
+          )}
+
+          {/* Line 3 — value */}
+          {fmtMoney(q.value) !== "—" && (
+            <div className="mt-1.5 text-xs text-slate-500">
+              <span className="font-semibold text-slate-700">{fmtMoney(q.value)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Stats + actions band */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-slate-100 pt-3">
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Booking</div>
+          <BookingCell booking={booking} />
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
+          <div className="mt-1"><EmailBadge email={email} signals={wh} /></div>
+          {(() => {
+            const info = emailStatusInfo(mergedEmailStatus(email, wh));
+            return info?.viewed && email?.lastEventAt ? (
+              <div className="mt-0.5 text-[10px] text-slate-400">{info.label} {fmtDateTime(email.lastEventAt)}</div>
+            ) : null;
+          })()}
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">WhatsApp</div>
+          <div className="mt-1"><WhatsappStatus wa={wa} /></div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Booking</div>
-            <BookingCell booking={booking} />
-          </div>
-          <div className="text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Email</div>
-            <div className="mt-1"><EmailBadge email={email} signals={wh} /></div>
-            {(() => {
-              const info = emailStatusInfo(mergedEmailStatus(email, wh));
-              return info?.viewed && email?.lastEventAt ? (
-                <div className="mt-0.5 text-[10px] text-slate-400">{info.label} {fmtDateTime(email.lastEventAt)}</div>
-              ) : null;
-            })()}
-          </div>
-          <div className="text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">WhatsApp</div>
-            <div className="mt-1"><WhatsappStatus wa={wa} /></div>
-          </div>
-          <div className="flex flex-col items-end gap-1">
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex flex-col items-start gap-1">
             <button
               type="button"
               onClick={onShareWarehouse}
               disabled={share === "sending"}
               title="Share warehouse images & videos (WhatsApp + Email)"
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                 share === "sent"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                   : share === "error"
@@ -841,23 +871,23 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
               <button
                 onClick={onQuickFollowUp}
                 title="Add follow-up"
-                className="flex h-7 w-7 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
               >
-                <CalendarClock className="h-3.5 w-3.5" />
+                <CalendarClock className="h-4 w-4" />
               </button>
             )}
             {/* Log activity — only for customers that were actually called
                 (have follow_up_start_time AND follow_up_end_time). */}
             {q.hasCallTimes && (
               <IconBtn title="Log activity" tone="view" onClick={onLogActivity}>
-                <ClipboardList className="h-3.5 w-3.5" />
+                <ClipboardList className="h-4 w-4" />
               </IconBtn>
             )}
-            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view" external><Eye className="h-3.5 w-3.5" /></IconBtn>
+            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view" external><Eye className="h-4 w-4" /></IconBtn>
             {q.contact && (
               <>
-                <IconBtn href={`tel:+91${q.contact}`} title="Call" tone="call"><Phone className="h-3.5 w-3.5" /></IconBtn>
-                <IconBtn href={`https://wa.me/91${q.contact}`} title="WhatsApp" tone="whatsapp" external><MessageCircle className="h-3.5 w-3.5" /></IconBtn>
+                <IconBtn href={`tel:+91${q.contact}`} title="Call" tone="call"><Phone className="h-4 w-4" /></IconBtn>
+                <IconBtn href={`https://wa.me/91${q.contact}`} title="WhatsApp" tone="whatsapp" external><MessageCircle className="h-4 w-4" /></IconBtn>
               </>
             )}
           </div>
@@ -866,7 +896,7 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
 
       {/* Inline lifecycle */}
       {!compact && life && (
-        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-4">
+        <div className="mt-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5">
           <LifecycleStepper lifecycle={life} showLegend={false} wh={wh} />
         </div>
       )}
@@ -1333,14 +1363,14 @@ function LifecycleStepper({ lifecycle, showLegend = true, wh }) {
   const whInfo = wh?.warehouseStatus ? emailStatusInfo(wh.warehouseStatus) : null;
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="text-xs font-bold uppercase tracking-wide text-orange-600">Lifecycle</span>
-          <span className="text-sm text-slate-500">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-orange-600">Lifecycle</span>
+          <span className="text-xs text-slate-500">
             Step {furthest + 1} of {total} — <span className="font-semibold text-slate-700">{current?.label}</span>
           </span>
         </div>
-        <span className="text-sm font-bold text-slate-400">{furthest + 1}/{total}</span>
+        <span className="text-xs font-bold text-slate-400">{furthest + 1}/{total}</span>
       </div>
 
       <div className="flex items-start">
@@ -1360,7 +1390,7 @@ function LifecycleStepper({ lifecycle, showLegend = true, wh }) {
                   className={`h-1 flex-1 rounded-full ${i === 0 ? "opacity-0" : leftReached ? toneOf(steps[i - 1].tone).line : "bg-slate-200"}`}
                 />
                 <span
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold text-white ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
                     isCurrent ? `${t.dot} ring-4 ${t.ring}` : isDone ? t.dot : "bg-white text-slate-300 ring-2 ring-slate-200"
                   }`}
                 >
@@ -1371,7 +1401,7 @@ function LifecycleStepper({ lifecycle, showLegend = true, wh }) {
                 />
               </div>
               {/* label + sublabel under the node */}
-              <div className="mt-2.5 px-1 text-center">
+              <div className="mt-2 px-1 text-center">
                 <div
                   className={`text-xs leading-tight ${
                     isCurrent ? `font-bold ${t.text}` : isDone ? "font-semibold text-slate-700" : "text-slate-400"
@@ -1602,9 +1632,9 @@ function Th({ children, className = "" }) {
 
 function Avatar({ name, large }) {
   const initials = name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-  const size = large ? "h-10 w-10 text-sm" : "h-8 w-8 text-xs";
+  const size = large ? "h-12 w-12 rounded-2xl text-base" : "h-8 w-8 rounded-full text-xs";
   return (
-    <span className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700`}>
+    <span className={`flex ${size} shrink-0 items-center justify-center bg-indigo-100 font-bold text-indigo-700`}>
       {initials}
     </span>
   );
@@ -1617,7 +1647,7 @@ function IconBtn({ href, title, external, tone, onClick, children }) {
     view: "border-indigo-200 bg-indigo-50 text-indigo-600 hover:border-indigo-300 hover:bg-indigo-100",
   };
   const cls = tones[tone] || "border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600";
-  const className = `flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${cls}`;
+  const className = `flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${cls}`;
 
   // Render a real button for in-app actions (no navigation target).
   if (!href) {
@@ -1665,21 +1695,6 @@ function prettyFollowUp(s) {
     .replace(/\b\w/g, (ch) => ch.toUpperCase())
     .replace(/\bRnr\b/gi, "RNR")
     .replace(/\bOtp\b/gi, "OTP");
-}
-
-function CityChip({ active, onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold capitalize transition-colors ${
-        active
-          ? "border-indigo-600 bg-indigo-600 text-white"
-          : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-      }`}
-    >
-      {children}
-    </button>
-  );
 }
 
 function DensityBtn({ on, onClick, children }) {

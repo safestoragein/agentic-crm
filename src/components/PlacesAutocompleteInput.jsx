@@ -40,9 +40,12 @@ function loadGoogleMaps() {
  * legacy CRM's pickup-address field. `value`/`onChange` keep it controlled; the
  * picked place's formatted_address is pushed back through onChange.
  */
-export default function PlacesAutocompleteInput({ value, onChange, className, placeholder, country = "in" }) {
+export default function PlacesAutocompleteInput({ value, onChange, onPlace, className, placeholder, country = "in" }) {
   const inputRef = useRef(null);
   const acRef = useRef(null);
+  // Keep the latest callbacks so the (once-bound) listener always calls current ones.
+  const cbRef = useRef({ onChange, onPlace });
+  cbRef.current = { onChange, onPlace };
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +59,11 @@ export default function PlacesAutocompleteInput({ value, onChange, className, pl
         ac.addListener("place_changed", () => {
           const place = ac.getPlace();
           const addr = place?.formatted_address || place?.name;
-          if (addr) onChange?.(addr);
+          const loc = place?.geometry?.location;
+          const lat = loc ? loc.lat() : null;
+          const lng = loc ? loc.lng() : null;
+          if (addr) cbRef.current.onChange?.(addr);
+          cbRef.current.onPlace?.({ address: addr || "", lat, lng });
         });
         acRef.current = ac;
       })

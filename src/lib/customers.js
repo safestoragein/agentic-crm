@@ -6,6 +6,12 @@ import { apiGet, apiPostForm } from "./api";
 
 const MOD = "agentic_crm";
 
+// Nearest warehouse origin for a city → used to compute pickup-distance/intercity.
+// Returns { status, origin, warehouse_id, warehouse_name }.
+export async function fetchWarehouseForDistance(citySlug, { signal } = {}) {
+  return apiPostForm("get_warehouse_for_distance", { customer_local_city: citySlug }, { signal, module: MOD });
+}
+
 // Paginated/filtered customer list. `params`:
 //   start, length, search, customer_type, city, status, crmuser_id, follow_up,
 //   user_id (created-by), warehouse_id, is_active_reminder, search_date

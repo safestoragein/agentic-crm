@@ -17,6 +17,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { fetchQuotationEditData, saveQuotationData } from "@/lib/customer";
+import { getSession } from "@/lib/auth";
 import PlacesAutocompleteInput from "@/components/PlacesAutocompleteInput";
 
 export default function QuotationDetailPage() {
@@ -131,6 +132,7 @@ export default function QuotationDetailPage() {
       const r = await saveQuotationData({
         customer_id: id,
         quotation_id: quotationId,
+        created_by: getSession()?.user_id || "",
         // personal details
         customer_name: form.customer_name,
         customer_email: form.customer_email,
@@ -404,11 +406,11 @@ function SaveBtn({ saving, saved, onClick, light }) {
         </>
       ) : saved ? (
         <>
-          <CheckCircle2 className="h-4 w-4" /> Saved
+          <CheckCircle2 className="h-4 w-4" /> Saved &amp; sent
         </>
       ) : (
         <>
-          <Save className="h-4 w-4" /> Save quotation
+          <Save className="h-4 w-4" /> Save &amp; Send Email
         </>
       )}
     </button>

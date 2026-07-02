@@ -24,6 +24,7 @@ import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
 import { slaFor, fmtDur } from "@/lib/sla";
 import QuoteCard from "@/components/QuoteCard";
+import QuoteTable from "@/components/QuoteTable";
 import AdminOnly from "@/components/AdminOnly";
 
 const SLA_LABELS = {
@@ -56,6 +57,7 @@ function SlaBoardPageInner() {
   const [view, setView] = useState("all");
   const [city, setCity] = useState("");
   const [sort, setSort] = useState("booking");
+  const [tableView, setTableView] = useState(false); // cards | table
   // Engagement maps (same sources as /quotations) — power the rich card badges.
   const [emailStatus, setEmailStatus] = useState({});
   const [otpIds, setOtpIds] = useState(() => new Set());
@@ -232,12 +234,6 @@ function SlaBoardPageInner() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-              <Timer className="h-5 w-5" />
-            </span>
-            SLA Board
-          </h1>
           <p className="mt-1 text-sm text-slate-500">Live first-response, time-in-stage and RNR timers across the team.</p>
         </div>
         <button
@@ -306,6 +302,10 @@ function SlaBoardPageInner() {
             <option value="id">Quote ID</option>
           </select>
         </label>
+        <div className="flex overflow-hidden rounded-lg border border-slate-200">
+          <button onClick={() => setTableView(false)} className={`px-3 py-2 text-xs font-semibold transition-colors ${!tableView ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>Cards</button>
+          <button onClick={() => setTableView(true)} className={`px-3 py-2 text-xs font-semibold transition-colors ${tableView ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>Table</button>
+        </div>
         {loading && <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />}
       </div>
 
@@ -322,6 +322,13 @@ function SlaBoardPageInner() {
         </div>
       )}
 
+      {/* Table view (with lifecycle) */}
+      {list && tableView && shown.length > 0 && (
+        <div className="mt-4">
+          <QuoteTable rows={shown.map((x) => x.q)} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} />
+        </div>
+      )}
+
       {/* SLA-timer alert strip + rich cards (same design + data as /quotations) */}
       <div className="mt-4 space-y-3">
         {!list && (
@@ -334,7 +341,7 @@ function SlaBoardPageInner() {
             Nothing {view === "breached" ? "breached" : view === "soon" ? "breaching soon" : "open with an SLA"} right now. 🎉
           </div>
         )}
-        {shown.map(({ q, sla }) => {
+        {!tableView && shown.map(({ q, sla }) => {
           const worst = sla.worst;
           const breached = sla.status === "breached";
           const breachMins = breached ? Math.max(1, Math.round(-worst.remaining / 60000)) : null;

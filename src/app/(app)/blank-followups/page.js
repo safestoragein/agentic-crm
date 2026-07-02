@@ -27,6 +27,7 @@ const TABS = [
   { key: "all", label: "All" },
   { key: "today", label: "Today" },
   { key: "yesterday", label: "Yesterday" },
+  { key: "overdue", label: "Overdue", red: true },
 ];
 
 export default function BlankFollowupsPage() {
@@ -82,14 +83,24 @@ export default function BlankFollowupsPage() {
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   }, [list, today, yesterday]);
 
+  // Overdue: follow-up date is before today and still a lead (is_customer='0').
+  // Skip dead leads — invalid / lost follow-up statuses don't need chasing.
+  const overdue = useMemo(() => {
+    if (!list) return [];
+    const DEAD = new Set(["invalid", "lost"]);
+    return list
+      .filter((q) => q.bucket === "overdue" && !DEAD.has(q.statusKey))
+      .sort((a, b) => String(a.followDate || "").localeCompare(String(b.followDate || "")));
+  }, [list]);
+
   const counts = useMemo(() => {
-    const c = { all: fresh.length, today: 0, yesterday: 0 };
+    const c = { all: fresh.length, today: 0, yesterday: 0, overdue: overdue.length };
     for (const q of fresh) (String(q.createdAt).slice(0, 10) === today ? (c.today++) : (c.yesterday++));
     return c;
-  }, [fresh, today]);
+  }, [fresh, overdue, today]);
 
   const rows = useMemo(() => {
-    let r = fresh;
+    let r = tab === "overdue" ? overdue : fresh;
     const s = query.trim().toLowerCase();
     if (s) {
       // Search spans all tabs (name, phone, email, customer_id, unique id).
@@ -109,7 +120,7 @@ export default function BlankFollowupsPage() {
       r = r.filter((q) => String(q.createdAt).slice(0, 10) === yesterday);
     }
     return r;
-  }, [fresh, tab, query, today, yesterday]);
+  }, [fresh, overdue, tab, query, today, yesterday]);
 
   // Escalation evaluation per quote (keyed by customer_id) — mirrors /quotations.
   const escMap = useMemo(() => {
@@ -219,13 +230,7 @@ export default function BlankFollowupsPage() {
       {/* header */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm">
-              <CalendarX className="h-5 w-5" />
-            </span>
-            Blank follow-ups
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">Customers created yesterday &amp; today with no follow-up yet — call these first.</p>
+          <p className="mt-1 text-sm text-slate-500">Blank follow-ups (created yesterday &amp; today, not yet contacted) and overdue follow-ups (follow-up date already passed) — work these first.</p>
         </div>
         <button
           onClick={() => load()}

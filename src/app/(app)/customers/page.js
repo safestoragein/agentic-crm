@@ -21,11 +21,12 @@ import {
   Activity,
   PhoneCall,
   Bell,
-  CalendarDays,
   CalendarClock,
 } from "lucide-react";
 import { fetchCustomers, fetchCustomerFilters } from "@/lib/customers";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
+import DateFilter from "@/components/DateFilter";
+import { rangeForPreset } from "@/lib/crm";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PAGE_SIZE = 25;
@@ -75,7 +76,12 @@ export default function ManageCustomersPage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [f, setF] = useState(EMPTY_FILTERS);
+  // Default view = this month (fast). Search ignores the date so any customer,
+  // even years back, is findable — see `searchDate` below.
+  const [f, setF] = useState(() => {
+    const m = rangeForPreset("month");
+    return { ...EMPTY_FILTERS, dateFrom: m.from, dateTo: m.to };
+  });
   const [start, setStart] = useState(0);
 
   const [opts, setOpts] = useState({ cities: [], crm_users: [], warehouses: [], users: [] });
@@ -84,6 +90,12 @@ export default function ManageCustomersPage() {
   const [followUpFor, setFollowUpFor] = useState(null);
 
   const setFilter = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  // Shared DateFilter → created-date range. "All" (from 2000-01-01) maps back to
+  // empty so the default stays "no date filter" (every customer), unchanged.
+  const handleDateChange = useCallback((r) => {
+    const all = r.from === "2000-01-01";
+    setF((p) => ({ ...p, dateFrom: all ? "" : r.from, dateTo: all ? "" : r.to }));
+  }, []);
 
   // Patch a single row in place after a follow-up save (no full reload flash).
   const patchRow = (customerId, patch) =>
@@ -104,7 +116,13 @@ export default function ManageCustomersPage() {
     return () => ctrl.abort();
   }, []);
 
-  const searchDate = f.dateFrom && f.dateTo ? `${f.dateFrom.replaceAll("-", "/")}-${f.dateTo.replaceAll("-", "/")}` : "";
+  // While searching, drop the date window so the query spans ALL customers
+  // (a 5-years-back customer is still found). No search → the date filter applies.
+  const searchDate = search
+    ? ""
+    : f.dateFrom && f.dateTo
+    ? `${f.dateFrom.replaceAll("-", "/")}-${f.dateTo.replaceAll("-", "/")}`
+    : "";
 
   const load = useCallback(
     (signal) => {
@@ -148,13 +166,18 @@ export default function ManageCustomersPage() {
 
   const page = Math.floor(start / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(filtered / PAGE_SIZE));
-  const activeFilterCount = (search ? 1 : 0) + Object.entries(f).filter(([k, v]) => v && k !== "dateTo").length;
+  // Date is the default month window, not a user-applied filter, so it doesn't
+  // count toward the active-filter badge / clear button.
+  const activeFilterCount =
+    (search ? 1 : 0) + Object.entries(f).filter(([k, v]) => v && k !== "dateTo" && k !== "dateFrom").length;
   const anyFilter = activeFilterCount > 0;
 
+  // Clear the other filters + search but keep the current date window (the
+  // DateFilter control is uncontrolled, so leave its month selection in place).
   const clearFilters = () => {
     setSearchInput("");
     setSearch("");
-    setF(EMPTY_FILTERS);
+    setF((p) => ({ ...EMPTY_FILTERS, dateFrom: p.dateFrom, dateTo: p.dateTo }));
   };
 
   return (
@@ -162,13 +185,7 @@ export default function ManageCustomersPage() {
       {/* header */}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-slate-900">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
-              <Users className="h-5 w-5" />
-            </span>
-            Manage Customers
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">All active customers across SafeStorage, with live filters.</p>
+          <p className="text-sm text-slate-500">All active customers across SafeStorage, with live filters.</p>
         </div>
         <div className="flex items-center gap-2">
           <StatPill label="Total" value={rows ? total.toLocaleString("en-IN") : "—"} tone="slate" />
@@ -272,27 +289,8 @@ export default function ManageCustomersPage() {
             ))}
           </Pill>
 
-          {/* date range pill */}
-          <div className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50/50 px-2.5 py-1.5 ring-1 ring-indigo-200">
-            <span className="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
-              <CalendarDays className="h-3 w-3" /> Date
-            </span>
-            <input
-              type="date"
-              value={f.dateFrom}
-              max={f.dateTo || undefined}
-              onChange={(e) => setFilter("dateFrom", e.target.value)}
-              className="bg-transparent text-xs text-slate-600 focus:outline-none"
-            />
-            <span className="text-xs text-slate-400">–</span>
-            <input
-              type="date"
-              value={f.dateTo}
-              min={f.dateFrom || undefined}
-              onChange={(e) => setFilter("dateTo", e.target.value)}
-              className="bg-transparent text-xs text-slate-600 focus:outline-none"
-            />
-          </div>
+          {/* date range — shared DateFilter (created-date), default = this month */}
+          <DateFilter onChange={handleDateChange} defaultPreset="month" />
         </div>
       </div>
 

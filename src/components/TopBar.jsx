@@ -1,35 +1,44 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { Search, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/adminAuth";
 import { logEvent, saveLogoutTime } from "@/lib/activity";
 import AlertCenter from "@/components/AlertCenter";
 
+// Page title shown in the top bar (moved out of each page for a cleaner look).
+// Only the static list pages are here; dynamic/detail pages keep their own header.
+const TITLES = {
+  "/dashboard": "Dashboard",
+  "/leads": "Leads",
+  "/quotations": "Quotations",
+  "/follow-ups": "Follow-ups",
+  "/blank-followups": "Blank / Overdue Follow-ups",
+  "/customers": "Manage Customers",
+  "/booking-report": "Booking Report",
+  "/leaderboard": "Leaderboard",
+  "/logs": "Productivity",
+  "/sla": "SLA Board",
+  "/rnr": "RNR Analytics",
+  "/whatsapp": "WhatsApp Engaged",
+  "/ai-analytics": "AI Analytics",
+  "/admin": "Team Report",
+  "/admin/agents": "Agent-wise Stats",
+};
+
 export default function TopBar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [session, setSession] = useState(null);
-  const [q, setQ] = useState("");
 
   useEffect(() => {
     setSession(getSession());
   }, []);
 
-  // Jump to the Quotations list with the typed term applied. Quotations search
-  // spans the rep's whole history (all dates), so a phone number finds the
-  // customer no matter when they quoted.
-  const runSearch = () => {
-    const term = q.trim();
-    if (!term) return;
-    router.push(`/quotations?q=${encodeURIComponent(term)}`);
-    // Also broadcast it, so if we're ALREADY on the Quotations page (no remount
-    // happens) the list still picks up the new term and filters.
-    window.dispatchEvent(new CustomEvent("crm-search", { detail: term }));
-  };
-
+  const title = TITLES[pathname] || "";
   const fname = session?.user_fname || "User";
   const initials = fname.slice(0, 2).toUpperCase();
 
@@ -38,16 +47,7 @@ export default function TopBar() {
       <div className="flex items-center gap-4 px-5 py-3">
         <Image src="https://safestorage.in/assets/new_design_css/img/logo.png" alt="SafeStorage" width={190} height={71} className="h-7 w-auto lg:hidden" />
 
-        <div className="relative hidden flex-1 sm:block sm:max-w-lg">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }}
-            placeholder="Search customer by name, phone, quote # — press Enter"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10"
-          />
-        </div>
+        {title && <h1 className="truncate text-lg font-bold tracking-tight text-slate-900">{title}</h1>}
 
         <div className="ml-auto flex items-center gap-3">
           <span className="hidden items-center gap-1.5 text-sm font-medium text-emerald-600 sm:flex">

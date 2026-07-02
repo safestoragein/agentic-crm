@@ -136,6 +136,58 @@ export async function fetchFollowupsDueToday(userId, { signal } = {}) {
   });
 }
 
+// Sidebar nav badge counts for the logged-in rep, from the moderate data bundle
+// (quotes + bookings + follow-ups) so it's fast. Returns a map keyed by href.
+//   /quotations       new quotations created today
+//   /follow-ups       follow-ups due today
+//   /blank-followups  blank (created today/yesterday, no follow-up) + overdue
+//   /booking-report   bookings won today
+//   /logs             follow-ups actually logged today (productivity)
+export async function fetchNavCounts(userId, { signal } = {}) {
+  const today = ymd();
+  const yesterday = ymd(new Date(Date.now() - 86400000));
+  const dOnly = (d) => String(d || "").slice(0, 10);
+  const [quotesRaw, bookingsRaw, fuRows] = await Promise.all([
+    apiPostForm("crm_team_quotations_data", { relationship_manager_id: userId }, { signal }).catch(() => null),
+    apiGet("show_bookings_data", { signal }).catch(() => null),
+    fetchFollowupsDueToday(userId, { signal }).catch(() => []),
+  ]);
+  const quotes = toList(quotesRaw);
+  const bookings = toList(bookingsRaw).filter((b) => String(b.relationship_manager_id) === String(userId));
+
+  // Blank / Overdue nav badge = blank (fresh, un-contacted) + overdue (past due,
+  // not invalid/lost) — matches the two tabs on that page.
+  const DEAD = new Set(["invalid", "lost"]);
+  const blank = quotes.filter((q) => {
+    const d = dOnly(q.created_at);
+    if (d !== today && d !== yesterday) return false;
+    const s = normStatus(q.follow_up);
+    return !q.follow_up || !s || s === "none";
+  }).length;
+  const overdue = quotes.filter((q) => {
+    const fd = dOnly(q.follow_up_date);
+    return fd && fd < today && !DEAD.has(normStatus(q.follow_up));
+  }).length;
+
+  return {
+    "/quotations": quotes.filter((q) => dOnly(q.created_at) === today).length,
+    "/follow-ups": (fuRows || []).length,
+    "/blank-followups": blank + overdue,
+    "/booking-report": bookings.filter((b) => dOnly(b.order_created_at) === today).length,
+    "/logs": quotes.filter((q) => dOnly(q.follow_up_start_time) === today).length,
+  };
+}
+
+// Today's new leads for the rep. Separate call — the leads payload is heavy
+// (~6.6MB), so it must never block the other nav badges.
+export async function fetchLeadsTodayCount(userId, { signal } = {}) {
+  const today = ymd();
+  const raw = await apiGet("get_crm_leads_data", { signal });
+  return toList(raw).filter(
+    (l) => String(l.relationship_manager_id) === String(userId) && String(l.date || "").slice(0, 10) === today
+  ).length;
+}
+
 export async function fetchCore(userId, { signal } = {}) {
   const [ranking, quotes, bookings, fuRows] = await Promise.all([
     apiGet("show_user_booking_ranking", { signal }).catch(() => null),
@@ -583,12 +635,27 @@ export async function fetchReportListExact(type, { from, to, city, signal } = {}
       phone: r.customer_contact1 || r.customer_mobile_no || "",
       email: r.customer_email || "",
       city: r.customer_local_city || "",
-      status: r.follow_up || "",
+      status: r.order_status || r.follow_up || "",
       followDate: r.follow_up_date || "",
       rep: `${r.user_fname || ""} ${r.user_lname || ""}`.trim(),
       repId: r.relationship_manager_id != null && r.relationship_manager_id !== "" ? String(r.relationship_manager_id) : "",
+      // Booking-specific (booked_customers): order + charges + coupons.
+      orderId: r.order_id || "",
+      storageCharges: r.total_storage_charges_with_gst ?? r.total_storage_charges ?? "",
+      transportCharges: r.total_pickup_charges_with_gst ?? r.total_pickup_charges ?? "",
+      storageCoupon: couponPct(r.storage_coupen),
+      transportCoupon: couponPct(r.transport_coupon),
     })),
   };
+}
+
+// Coupon codes are stored like "name-x-20"; the trailing number is the percent.
+function couponPct(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  const parts = s.split("-");
+  const pct = parts[parts.length - 1];
+  return /^\d+$/.test(pct) ? `${pct}%` : s;
 }
 
 // Fire-and-forget: run the warehouse auto-share sweep (sends to customers created
