@@ -118,29 +118,22 @@ export default function QuotationDetailPage() {
     return { base, mf, incGst: Math.round(gross), total, month3, month6, month12 };
   }, [form, q]);
 
-  // Effective display values: stored (untouched) so the page matches the old
-  // dashboard exactly, or the live recompute once the rep edits a charge.
-  // The old dashboard shows total_pickup_charges_with_gst as "Total transport
-  // charges" and transport_due_charges as "Due" (it does NOT recompute transport
-  // on load). We must read the SAME two fields — `pickup_charges` differs from
-  // total_pickup_charges_with_gst on some quotes (it folds in the pallet
-  // surcharge), which made the new total read ~₹1000 high vs the old dashboard.
-  const transportTotal = dirty.transport ? transportCalc.total : Math.ceil(num(q?.total_pickup_charges_with_gst));
-  // Due = Total − ₹1000 token − any extra token, matching the old dashboard
-  // (which always shows Due = Total − token). Deriving it from the corrected
-  // Total is robust to quotes whose stored transport_due_charges is inconsistent.
-  const transportDue = dirty.transport
-    ? transportCalc.due
-    : Math.max(transportTotal - transportCalc.token - num(q?.transport_token_amtextra), 0);
-  // Default (unedited) total = the stored GST-inclusive amount MINUS the existing
-  // storage coupon, so "Total storage charges" matches the old dashboard's
-  // coupon-applied figure. The multi-month prices derive from that same total.
-  const storageTotal = dirty.storage
-    ? storageCalc.total
-    : Math.round(num(q?.total_storage_charges_with_gst) - couponAmount(q?.storage_coupen, num(q?.total_storage_charges_with_gst)));
-  const storageMonth3 = dirty.storage ? storageCalc.month3 : Math.round(storageTotal * 0.97 * 3);
-  const storageMonth6 = dirty.storage ? storageCalc.month6 : Math.round(storageTotal * 0.9 * 6);
-  const storageMonth12 = dirty.storage ? storageCalc.month12 : Math.round(storageTotal * 0.8 * 12);
+  // Display values ALWAYS come from the recompute, because the old dashboard
+  // recomputes both sections on load (do_storage_calculation / do_transport_
+  // calculation) and shows those figures — NOT the stored charge columns.
+  //   • Transport: the stored pickup_charges / total_pickup_charges_with_gst fold
+  //     in the pallet surcharge (e.g. 4311), but the old dashboard shows the
+  //     recompute (pieces × multi-factor − coupon = 3311; Due = 3311 − ₹1000 token
+  //     = 2311). Reading a stored field made the total ~₹1000 high.
+  //   • Storage: coupon-applied GST-inclusive total (e.g. 2903), months derived
+  //     from it. `dirty` no longer affects the displayed figures — editing a
+  //     charge updates `form`, which flows through *Calc automatically.
+  const transportTotal = transportCalc.total;
+  const transportDue = transportCalc.due;
+  const storageTotal = storageCalc.total;
+  const storageMonth3 = storageCalc.month3;
+  const storageMonth6 = storageCalc.month6;
+  const storageMonth12 = storageCalc.month12;
 
   const handleSave = async () => {
     if (!form || saving) return;
