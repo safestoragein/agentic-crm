@@ -310,6 +310,33 @@ export default function NewQuotationPage() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // After-discount / payable breakdown for step 2. Mirrors the quotation view's
+  // do_storage_calculation / do_transport_calculation exactly, so these figures
+  // match the quote once it's created:
+  //   Storage   → charges + 18% GST, then the storage coupon %.
+  //   Transport → charges, then the transport coupon %, then a ₹1000 pickup
+  //               token (advance); the balance is what's left after the token.
+  const payable = useMemo(() => {
+    const storageIncGst = Math.ceil(num(charges.storage) * 1.18);
+    const storagePct = couponPercent(pricing?.coupon_code);
+    const storageDiscount = Math.round(couponAmount(pricing?.coupon_code, storageIncGst));
+    const storageAfter = Math.max(Math.ceil(storageIncGst - storageDiscount), 0);
+
+    const transport = num(charges.transport);
+    const transportPct = couponPercent(pricing?.transport_coupon);
+    const transportDiscount = Math.round(couponAmount(pricing?.transport_coupon, transport));
+    const transportAfter = Math.max(Math.ceil(transport - transportDiscount), 0);
+    const transportToken = 1000; // pickup advance, same as the quotation view
+    const transportDue = Math.max(transportAfter - transportToken, 0);
+
+    return {
+      storageIncGst, storagePct, storageDiscount, storageAfter,
+      transport, transportPct, transportDiscount, transportAfter,
+      transportToken, transportDue,
+      warehouseToken: num(charges.token),
+    };
+  }, [charges, pricing]);
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
       <a
@@ -644,6 +671,41 @@ export default function NewQuotationPage() {
                         <span className="text-xl font-bold text-slate-900">
                           {rupee(charges.storage + charges.transport + charges.token)}
                         </span>
+                      </div>
+
+                      {/* After-discount / payable breakdown — what the customer
+                          actually pays (storage after discount; transport token
+                          + balance after paying the token). */}
+                      <div className="space-y-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-3.5">
+                        <div className="text-[11px] font-bold uppercase tracking-wide text-indigo-500">
+                          After discount · payable
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3 shadow-sm">
+                          <div className="mb-1.5 text-xs font-bold text-slate-700">Storage</div>
+                          <SumRow label="Incl. 18% GST" value={rupee(payable.storageIncGst)} />
+                          {payable.storagePct > 0 && (
+                            <SumRow label={`Discount (${payable.storagePct}%)`} value={`− ${rupee(payable.storageDiscount)}`} tone="emerald" />
+                          )}
+                          <SumRow label="Storage after discount" value={rupee(payable.storageAfter)} strong />
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3 shadow-sm">
+                          <div className="mb-1.5 text-xs font-bold text-slate-700">Transport</div>
+                          <SumRow label="Transport charges" value={rupee(payable.transport)} />
+                          {payable.transportPct > 0 && (
+                            <SumRow label={`Discount (${payable.transportPct}%)`} value={`− ${rupee(payable.transportDiscount)}`} tone="emerald" />
+                          )}
+                          <SumRow label="After discount" value={rupee(payable.transportAfter)} strong />
+                          <SumRow label="Token amount (advance)" value={rupee(payable.transportToken)} tone="amber" />
+                          <SumRow label="Balance after token" value={rupee(payable.transportDue)} strong />
+                        </div>
+
+                        {payable.warehouseToken > 0 && (
+                          <div className="px-1 text-[11px] text-slate-500">
+                            + Warehouse arrival token {rupee(payable.warehouseToken)} (paid separately)
+                          </div>
+                        )}
                       </div>
 
                       {(pricing.coupon_code || pricing.transport_coupon) && (
@@ -1020,6 +1082,34 @@ function presetForHomeType(items, homeType) {
 function itemName(it, slug) {
   return it?.storage_item_name || it?.item_name || prettyWords(slug);
 }
+// One line in the after-discount summary: label on the left, amount on the right.
+function SumRow({ label, value, tone, strong }) {
+  const tones = { emerald: "text-emerald-600", amber: "text-amber-600" };
+  return (
+    <div className={`flex items-center justify-between py-0.5 ${strong ? "border-t border-slate-100 pt-1.5 mt-1" : ""}`}>
+      <span className={`text-xs ${strong ? "font-bold text-slate-700" : "text-slate-500"}`}>{label}</span>
+      <span className={`text-sm tabular-nums ${strong ? "font-bold text-slate-900" : `font-semibold ${tones[tone] || "text-slate-700"}`}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// Coupon "safestorage-{flat|percent}-{amount}" → discount value off `base`
+// (mirrors the quotation view so the numbers match).
+function couponAmount(code, base) {
+  if (!code) return 0;
+  const a = String(code).split("-");
+  if (a[1] === "flat") return num(a[2]);
+  if (a[2]) return (num(a[2]) / 100) * num(base);
+  return 0;
+}
+// The percent off, for the "(20%)" label. 0 when it's a flat/blank coupon.
+function couponPercent(code) {
+  const a = String(code || "").split("-");
+  return a[1] === "percent" && a[2] ? num(a[2]) : 0;
+}
+
 function num(v) {
   const n = Number(v);
   return isNaN(n) ? 0 : n;
