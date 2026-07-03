@@ -121,7 +121,7 @@ export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp 
                 <td className="whitespace-nowrap px-4 py-3 font-bold tabular-nums text-slate-900">{q.contact ? `+91 ${q.contact}` : <span className="text-slate-300">—</span>}</td>
                 <td className="px-4 py-3">
                   {q.email ? (
-                    <a href={`mailto:${q.email}`} title={q.email} className="block max-w-[200px] truncate font-medium text-slate-700 hover:text-indigo-600">{q.email}</a>
+                    <a href={`mailto:${q.email}`} title={q.email} className="block min-w-[200px] break-all font-medium text-slate-700 hover:text-indigo-600">{q.email}</a>
                   ) : (
                     <span className="text-slate-300">—</span>
                   )}
