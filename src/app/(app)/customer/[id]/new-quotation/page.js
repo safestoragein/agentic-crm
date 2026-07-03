@@ -903,6 +903,20 @@ function StepDot({ n, label, active, done, clickable, onClick }) {
 function Stepper({ value, onChange, compact }) {
   const sz = compact ? "h-7 w-7" : "h-9 w-9";
   const icon = compact ? "h-3 w-3" : "h-4 w-4";
+  // Local text buffer so the count can be typed directly (e.g. 45 boxes) without
+  // clicking +. While the field is momentarily empty mid-edit we DON'T push 0 to
+  // the parent (that would drop the item); we only commit real numbers, and
+  // restore the current value on blur if left blank. The +/- buttons still work
+  // and keep the buffer in sync.
+  const [text, setText] = useState(String(value));
+  useEffect(() => { setText(String(value)); }, [value]);
+
+  const commit = (raw) => {
+    const digits = String(raw).replace(/[^0-9]/g, "");
+    setText(digits);
+    if (digits !== "") onChange(Math.max(0, parseInt(digits, 10)));
+  };
+
   return (
     <div className="flex items-center gap-1.5">
       <button
@@ -912,9 +926,16 @@ function Stepper({ value, onChange, compact }) {
       >
         <Minus className={icon} />
       </button>
-      <span className={`${compact ? "w-5" : "w-7"} text-center text-sm font-bold tabular-nums text-slate-800`}>
-        {value}
-      </span>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => commit(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onBlur={() => { if (text === "") setText(String(value)); }}
+        aria-label="Quantity"
+        className={`${compact ? "w-9" : "w-12"} rounded-lg border border-slate-200 py-1 text-center text-sm font-bold tabular-nums text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20`}
+      />
       <button
         onClick={() => onChange(value + 1)}
         className={`flex ${sz} items-center justify-center rounded-full border border-indigo-200 bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100`}
