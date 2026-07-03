@@ -90,6 +90,12 @@ export function rangeForPreset(preset) {
     case "all":
       // Whole history — clears the date window so every quotation shows.
       return { from: "2000-01-01", to: "2999-12-31", label: "All dates" };
+    case "lastmonth": {
+      // The whole previous calendar month (1st → last day).
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0); // day 0 = last day of prev month
+      return { from: ymd(first), to: ymd(last), label: "Last month" };
+    }
     case "month":
     default:
       return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: today, label: "This month" };

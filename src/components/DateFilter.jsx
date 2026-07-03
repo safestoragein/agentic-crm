@@ -10,6 +10,7 @@ const PRESETS = [
   { key: "3d", label: "3 days" },
   { key: "7d", label: "7 days" },
   { key: "month", label: "This month" },
+  { key: "lastmonth", label: "Last month" },
   { key: "all", label: "All" },
 ];
 
