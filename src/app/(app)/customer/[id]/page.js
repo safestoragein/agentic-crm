@@ -515,7 +515,7 @@ function QuotationsTab({ quotes, customer, onChanged }) {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-3">
-                  <ActionBtn href={editHref} icon={FolderOpen}>{newQuote ? "Open" : "Edit"}</ActionBtn>
+                  <ActionBtn href={editHref} icon={FolderOpen}>Edit</ActionBtn>
                   <ActionBtn icon={Package} onClick={() => setItemsFor(q)}>Items</ActionBtn>
                   <ActionBtn icon={BarChart3} onClick={() => setCompareFor(q)}>Quote vs pickup</ActionBtn>
                   {q.file_name ? <ActionBtn href={`${ADMIN_BASE}/uploads/pdf/${q.file_name}`} icon={FileDown}>PDF</ActionBtn> : null}
