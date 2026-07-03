@@ -1,7 +1,7 @@
 "use client";
 import { appHref } from "@/lib/paths";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Search,
   Loader2,
@@ -23,7 +23,7 @@ import {
   Bell,
   CalendarClock,
 } from "lucide-react";
-import { fetchCustomers, fetchCustomerFilters } from "@/lib/customers";
+import { fetchCustomers, fetchCustomerFilters, searchCustomerCreators } from "@/lib/customers";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import DateFilter from "@/components/DateFilter";
 import { rangeForPreset } from "@/lib/crm";
@@ -84,7 +84,7 @@ export default function ManageCustomersPage() {
   });
   const [start, setStart] = useState(0);
 
-  const [opts, setOpts] = useState({ cities: [], crm_users: [], warehouses: [], users: [] });
+  const [opts, setOpts] = useState({ cities: [], crm_users: [], warehouses: [] });
 
   // Customer whose follow-up is being edited (null = modal closed).
   const [followUpFor, setFollowUpFor] = useState(null);
@@ -111,7 +111,7 @@ export default function ManageCustomersPage() {
   useEffect(() => {
     const ctrl = new AbortController();
     fetchCustomerFilters({ signal: ctrl.signal })
-      .then((d) => setOpts({ cities: d.cities || [], crm_users: d.crm_users || [], warehouses: d.warehouses || [], users: d.users || [] }))
+      .then((d) => setOpts({ cities: d.cities || [], crm_users: d.crm_users || [], warehouses: d.warehouses || [] }))
       .catch(() => {});
     return () => ctrl.abort();
   }, []);
@@ -238,14 +238,16 @@ export default function ManageCustomersPage() {
             ))}
           </Pill>
 
-          <Pill icon={UserPlus} value={f.user_id} onChange={(v) => setFilter("user_id", v)}>
-            <option value="">Created by · all</option>
-            {opts.users.map((u) => (
-              <option key={u.user_id} value={u.user_id}>
-                {`${u.user_fname || ""} ${u.user_lname || ""}`.trim()}
-              </option>
-            ))}
-          </Pill>
+          {/* Created-by can hold tens of thousands of users, so it's searched
+              server-side (agentic_crm/search_users) as you type — never shipped
+              or rendered whole. */}
+          <SearchableSelect
+            icon={UserPlus}
+            value={f.user_id}
+            onChange={(v) => setFilter("user_id", v)}
+            allLabel="Created by · all"
+            search={searchCustomerCreators}
+          />
 
           <Pill icon={UserCog} value={f.crmuser} onChange={(v) => setFilter("crmuser", v)}>
             <option value="">CRM user · all</option>
@@ -543,6 +545,132 @@ function Pill({ icon: Icon, value, onChange, children }) {
         {children}
       </select>
       <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-slate-400" />
+    </div>
+  );
+}
+
+// Searchable single-select backed by a server-side `search` fn — for option
+// lists too large to ship to the client (e.g. the ~40k "Created by" users).
+// `search({ q, ids, signal })` returns [{ value, label }]; pass `ids` to resolve
+// the currently-selected value to its label. Only the matched handful is ever
+// fetched or rendered, so the control costs nothing until it's opened.
+function SearchableSelect({ icon: Icon, value, onChange, allLabel, search }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const ref = useRef(null);
+  const active = value !== "" && value != null;
+
+  // Resolve the selected value's label (e.g. on first load with a preset filter).
+  useEffect(() => {
+    if (!active) { setSelectedLabel(""); return; }
+    const known = results.find((it) => it.value === String(value));
+    if (known) { setSelectedLabel(known.label); return; }
+    const ctrl = new AbortController();
+    search({ ids: [String(value)], signal: ctrl.signal })
+      .then((rows) => setSelectedLabel(rows[0]?.label || `User ${value}`))
+      .catch(() => {});
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  // Debounced server search while the dropdown is open.
+  useEffect(() => {
+    if (!open) return;
+    const ctrl = new AbortController();
+    setLoading(true);
+    const t = setTimeout(() => {
+      search({ q: q.trim(), signal: ctrl.signal })
+        .then((rows) => setResults(rows))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, 250);
+    return () => { clearTimeout(t); ctrl.abort(); };
+  }, [open, q, search]);
+
+  // Close on outside click.
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  const pick = (v, label) => {
+    onChange(v);
+    if (label != null) setSelectedLabel(label);
+    setOpen(false);
+    setQ("");
+  };
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <div
+        className={`relative inline-flex items-center rounded-xl border transition-colors ${
+          active ? "border-indigo-300 bg-indigo-50" : "border-slate-200 bg-white hover:border-slate-300"
+        }`}
+      >
+        <Icon className={`pointer-events-none absolute left-2.5 h-3.5 w-3.5 ${active ? "text-indigo-500" : "text-slate-400"}`} />
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className={`max-w-[190px] cursor-pointer truncate bg-transparent py-2 pl-8 pr-7 text-left text-sm focus:outline-none ${
+            active ? "font-semibold text-indigo-700" : "text-slate-600"
+          }`}
+        >
+          {active ? (selectedLabel || `User ${value}`) : allLabel}
+        </button>
+        <ChevronDown className="pointer-events-none absolute right-2 h-3.5 w-3.5 text-slate-400" />
+      </div>
+
+      {open && (
+        <div className="absolute left-0 z-30 mt-1 w-72 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search name or ID…"
+              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-3 text-sm placeholder:text-slate-400 focus:border-indigo-400 focus:outline-none"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => pick("", "")}
+              className={`block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-slate-50 ${
+                !active ? "font-semibold text-indigo-700" : "text-slate-600"
+              }`}
+            >
+              {allLabel}
+            </button>
+            {results.map((it) => (
+              <button
+                key={it.value}
+                type="button"
+                onClick={() => pick(it.value, it.label)}
+                className={`block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-slate-50 ${
+                  it.value === String(value) ? "font-semibold text-indigo-700" : "text-slate-700"
+                }`}
+              >
+                {it.label} <span className="text-slate-400">#{it.value}</span>
+              </button>
+            ))}
+            {loading && <div className="px-2.5 py-2 text-sm text-slate-400">Searching…</div>}
+            {!loading && q.trim() && results.length === 0 && (
+              <div className="px-2.5 py-2 text-sm text-slate-400">No matches.</div>
+            )}
+            {!loading && !q.trim() && results.length === 0 && (
+              <div className="px-2.5 py-1.5 text-xs text-slate-400">Type a name or ID to search.</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

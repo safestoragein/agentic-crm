@@ -50,7 +50,7 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 export default function FollowUpsPage() {
   const [mode, setMode] = useState("quotations"); // "quotations" | "leads"
-  const [tableView, setTableView] = useState(false); // cards | table (quotations mode)
+  const [tableView, setTableView] = useState(true); // cards | table (quotations mode) — default to table
   const [quotes, setQuotes] = useState(null); // full mapped quotations (mapQuotationRow), like /quotations
   const [cohort, setCohort] = useState(null); // dashboard-sourced rows for ?view=
   const [leads, setLeads] = useState(null);
@@ -460,7 +460,7 @@ export default function FollowUpsPage() {
       {mode !== "leads" ? (
         tableView && data && quoteRows.length > 0 ? (
           <div className="mt-4">
-            <QuoteTable rows={quoteRows} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} />
+            <QuoteTable rows={quoteRows} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} onQuickFollowUp={(q) => setQuickFollowFor(q)} />
           </div>
         ) : (
         <div className="mt-4 space-y-3">

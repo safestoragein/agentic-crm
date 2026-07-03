@@ -67,7 +67,7 @@ function RnrAnalyticsPageInner() {
   const [loading, setLoading] = useState(false);
   const [scope, setScope] = useState("team"); // "team" | "mine"
   const [city, setCity] = useState("");
-  const [tableView, setTableView] = useState(false); // cards | table
+  const [tableView, setTableView] = useState(true); // cards | table — default to table
   const [sort, setSort] = useState("booking");
   // Engagement maps (same sources as /quotations) — power the rich card badges.
   const [emailStatus, setEmailStatus] = useState({});
@@ -671,7 +671,7 @@ function CandidateCards({ rows, escMap, bookingMap, lifecycleMap, emailStatus, o
     return <p className="py-6 text-center text-xs text-slate-400">No RNR customer has hit the attempt threshold. 🎉</p>;
   const shown = rows.slice(0, CANDIDATE_CAP);
   if (tableView) {
-    return <QuoteTable rows={shown} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} />;
+    return <QuoteTable rows={shown} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} onQuickFollowUp={onQuickFollowUp} />;
   }
   return (
     <div className="space-y-3">

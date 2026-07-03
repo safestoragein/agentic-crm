@@ -62,7 +62,7 @@ function ReportListInner() {
 
   const [cities, setCities] = useState([]);
   const [crmUsers, setCrmUsers] = useState([]);
-  const [tableView, setTableView] = useState(false); // cards | table
+  const [tableView, setTableView] = useState(true); // cards | table — default to table
 
   // Simple list (leads / bookings)
   const [rows, setRows] = useState(null);
@@ -283,7 +283,22 @@ function ReportListInner() {
       {/* Table view (with lifecycle) */}
       {isQuote && loaded && tableView && filteredQuotes.length > 0 && (
         <div className="mt-4">
-          <QuoteTable rows={filteredQuotes} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} />
+          <QuoteTable
+            rows={filteredQuotes}
+            getBooking={(q) => bookingMap.get(String(q.id))}
+            getLife={(q) => lifecycleMap.get(String(q.id))}
+            onQuickFollowUp={(q) =>
+              setFollowUpFor({
+                entity: "customer",
+                id: q.id,
+                name: q.name,
+                subtitle: q.uid || `ID ${q.id}`,
+                follow_up: q.status,
+                follow_up_date: q.followDate,
+                follow_up_note: q.noteFull,
+              })
+            }
+          />
         </div>
       )}
 

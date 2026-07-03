@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, MessageCircle, Eye } from "lucide-react";
+import { Phone, MessageCircle, Eye, CalendarClock } from "lucide-react";
 import { appHref } from "@/lib/paths";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -79,11 +79,14 @@ const IB = {
   call: "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100",
   whatsapp: "border-green-200 bg-green-50 text-green-600 hover:bg-green-100",
   view: "border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100",
+  follow: "border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100",
 };
 
 // Shared table view for quote/customer cohorts. Each page passes accessors so it
-// can key its own enrichment maps (getBooking / getLife).
-export default function QuoteTable({ rows, getBooking, getLife }) {
+// can key its own enrichment maps (getBooking / getLife). When `onQuickFollowUp`
+// is provided, each row gets an "add / update follow-up note" action (parity
+// with the card view's quick follow-up button).
+export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm ring-1 ring-slate-100">
       <table className="w-full border-collapse text-sm">
@@ -97,6 +100,7 @@ export default function QuoteTable({ rows, getBooking, getLife }) {
             <th className="px-4 py-3 text-center">Booking</th>
             <th className="px-4 py-3">Status</th>
             <th className="px-4 py-3">Follow-up</th>
+            <th className="px-4 py-3">Follow-up note</th>
             <th className="px-4 py-3">Rep</th>
             <th className="whitespace-nowrap px-4 py-3">Created</th>
             <th className="px-4 py-3">Lifecycle</th>
@@ -127,11 +131,30 @@ export default function QuoteTable({ rows, getBooking, getLife }) {
                 <td className="px-4 py-3 text-center"><BookingPill booking={booking} /></td>
                 <td className="px-4 py-3"><span className={`inline-block whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${st.cls}`}>{st.label}</span></td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">{q.followDate ? fmtDate(q.followDate) : <span className="text-slate-300">—</span>}</td>
+                <td className="px-4 py-3 align-top">
+                  {q.noteFull || q.note ? (
+                    <div className="max-h-32 min-w-[200px] max-w-[320px] overflow-y-auto whitespace-pre-line break-words rounded-lg border border-l-4 border-amber-300 border-l-amber-500 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold leading-snug text-slate-900 shadow-sm">
+                      {q.noteFull || q.note}
+                    </div>
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
+                </td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">{q.rep || <span className="text-slate-300">—</span>}</td>
                 <td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-400">{fmtDateTime(q.createdAt)}</td>
                 <td className="px-4 py-3"><MiniLifecycle life={life} /></td>
                 <td className="px-3 py-3">
                   <div className="flex items-center gap-1.5">
+                    {onQuickFollowUp && (
+                      <button
+                        type="button"
+                        onClick={() => onQuickFollowUp(q)}
+                        title="Add / update follow-up note"
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.follow}`}
+                      >
+                        <CalendarClock className="h-4 w-4" />
+                      </button>
+                    )}
                     {q.contact && (
                       <>
                         <a href={`tel:+91${q.contact}`} title="Call" className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.call}`}><Phone className="h-4 w-4" /></a>

@@ -4,7 +4,7 @@
 // KPI counts are computed CLIENT-SIDE from dated detail lists so the dashboard
 // can be filtered by any date range (the count endpoints are month-only).
 
-import { apiGet, apiPostForm, toList } from "./api";
+import { apiGet, apiGetForm, apiPostForm, toList } from "./api";
 
 const DONE_STATES = new Set(["booked", "lost", "invalid", "converted", "won"]);
 
@@ -124,7 +124,7 @@ export function timeAgoLabel(datetime) {
 // filters is_customer='0', so we only narrow to today + not-closed.
 export async function fetchFollowupsDueToday(userId, { signal } = {}) {
   const today = ymd();
-  const res = await apiPostForm(
+  const res = await apiGetForm(
     "crm_team_quotations_data_follow_ups",
     { relationship_manager_id: userId },
     { signal }
@@ -148,7 +148,7 @@ export async function fetchNavCounts(userId, { signal } = {}) {
   const yesterday = ymd(new Date(Date.now() - 86400000));
   const dOnly = (d) => String(d || "").slice(0, 10);
   const [quotesRaw, bookingsRaw, fuRows] = await Promise.all([
-    apiPostForm("crm_team_quotations_data", { relationship_manager_id: userId }, { signal }).catch(() => null),
+    apiGetForm("crm_team_quotations_data", { relationship_manager_id: userId }, { signal }).catch(() => null),
     apiGet("show_bookings_data", { signal }).catch(() => null),
     fetchFollowupsDueToday(userId, { signal }).catch(() => []),
   ]);
@@ -178,11 +178,12 @@ export async function fetchNavCounts(userId, { signal } = {}) {
   };
 }
 
-// Today's new leads for the rep. Separate call — the leads payload is heavy
-// (~6.6MB), so it must never block the other nav badges.
+// Today's new leads for the rep. Scoped to the rep server-side (the backend
+// filters when relationship_manager_id is passed), so this pulls only this
+// rep's slice instead of the whole team's ~6MB leads payload.
 export async function fetchLeadsTodayCount(userId, { signal } = {}) {
   const today = ymd();
-  const raw = await apiGet("get_crm_leads_data", { signal });
+  const raw = await apiGet(`get_crm_leads_data?relationship_manager_id=${encodeURIComponent(userId)}`, { signal });
   return toList(raw).filter(
     (l) => String(l.relationship_manager_id) === String(userId) && String(l.date || "").slice(0, 10) === today
   ).length;
@@ -191,7 +192,7 @@ export async function fetchLeadsTodayCount(userId, { signal } = {}) {
 export async function fetchCore(userId, { signal } = {}) {
   const [ranking, quotes, bookings, fuRows] = await Promise.all([
     apiGet("show_user_booking_ranking", { signal }).catch(() => null),
-    apiPostForm("crm_team_quotations_data", { relationship_manager_id: userId }, { signal }).catch(() => null),
+    apiGetForm("crm_team_quotations_data", { relationship_manager_id: userId }, { signal }).catch(() => null),
     apiGet("show_bookings_data", { signal }).catch(() => null),
     // Follow-ups due today, matching the legacy household_quotation_followup page.
     fetchFollowupsDueToday(userId, { signal }).catch(() => []),
@@ -310,7 +311,10 @@ export function callDurationSecs(q) {
 // blocks the rest of the dashboard. Returns dated list + live uncontacted leads.
 // ---------------------------------------------------------------------------
 export async function fetchLeads(userId, { signal } = {}) {
-  const leadsRaw = await apiGet("get_crm_leads_data", { signal });
+  // Scoped to the rep server-side (backend filters on relationship_manager_id),
+  // so this pulls only this rep's leads instead of the whole team's ~6MB. The
+  // client-side filter below is kept as a defensive no-op.
+  const leadsRaw = await apiGet(`get_crm_leads_data?relationship_manager_id=${encodeURIComponent(userId)}`, { signal });
   const mine = toList(leadsRaw).filter(
     (l) => String(l.relationship_manager_id) === String(userId)
   );
@@ -389,7 +393,7 @@ function leadDoneToday(lead, today) {
 // Full quotations list for the logged-in user, normalised for the table view.
 // ---------------------------------------------------------------------------
 export async function fetchQuotations(userId, { signal } = {}) {
-  const raw = await apiPostForm(
+  const raw = await apiGetForm(
     "crm_team_quotations_data",
     { relationship_manager_id: userId },
     { signal }
@@ -403,7 +407,7 @@ export async function fetchQuotations(userId, { signal } = {}) {
 // customer, is_customer='0', keyed on follow_up_date), so the page's "Due
 // today" count and customer list match the home page exactly.
 export async function fetchFollowupCohort(userId, { signal } = {}) {
-  const raw = await apiPostForm(
+  const raw = await apiGetForm(
     "crm_team_quotations_data_follow_ups",
     { relationship_manager_id: userId },
     { signal }
@@ -466,7 +470,7 @@ export async function updateLeadFollowUp(
 // Team-wide quotations (every rep) — for the SLA board and coaching analytics.
 // Omitting relationship_manager_id returns all open quotes (is_customer = 0).
 export async function fetchTeamQuotations({ signal } = {}) {
-  const raw = await apiPostForm("crm_team_quotations_data", {}, { signal });
+  const raw = await apiGetForm("crm_team_quotations_data", {}, { signal });
   const today = ymd();
   return toList(raw).map((q) => mapQuotationRow(q, today));
 }
@@ -577,13 +581,13 @@ export async function fetchReportList(type, { from, to, city, signal } = {}) {
       .map((l) => row(l, { idKey: "id", phoneKey: "customer_mobile_no" }));
   }
   if (type === "quotation_customers") {
-    const res = await apiPostForm("crm_team_quotations_data", {}, { signal });
+    const res = await apiGetForm("crm_team_quotations_data", {}, { signal });
     return toList(res)
       .filter((q) => inRange(q.created_at || q.customer_date) && cityOk(q.customer_local_city))
       .map((q) => row(q));
   }
   if (type === "follow_up_customers") {
-    const res = await apiPostForm("crm_team_quotations_data_follow_ups", {}, { signal });
+    const res = await apiGetForm("crm_team_quotations_data_follow_ups", {}, { signal });
     return toList(res)
       .filter(
         (q) =>
@@ -620,7 +624,7 @@ export async function fetchReportList(type, { from, to, city, signal } = {}) {
 export async function fetchReportListExact(type, { from, to, city, signal } = {}) {
   const fields = { type, search_date: `${reportDate(from)} - ${reportDate(to)}` };
   if (city) fields.city = city;
-  const res = await apiPostForm("booking_report_list", fields, { signal, module: "agentic_crm" });
+  const res = await apiGetForm("booking_report_list", fields, { signal, module: "agentic_crm" });
   const rows = toList(res);
   if (type === "quotation_customers" || type === "follow_up_customers") {
     const today = ymd();
@@ -662,7 +666,7 @@ function couponPct(v) {
 // ~3 min ago, exactly once). Triggered on the booking-report page load instead of
 // a server cron — failures are swallowed so it never blocks the page.
 export function triggerAutoShareWarehouse() {
-  apiGet("auto_share_warehouse", { module: "agentic_crm" }).catch(() => {});
+  apiGet("auto_share_warehouse", { module: "agentic_crm", noCache: true }).catch(() => {});
 }
 
 export async function fetchBookingReport({ from, to, city, compareFrom, compareTo, signal } = {}) {
@@ -670,7 +674,7 @@ export async function fetchBookingReport({ from, to, city, compareFrom, compareT
   if (from && to) fields.search_date = `${reportDate(from)} - ${reportDate(to)}`;
   if (city) fields.city = city;
   if (compareFrom && compareTo) fields.compare_date = `${reportDate(compareFrom)} - ${reportDate(compareTo)}`;
-  const res = await apiPostForm("booking_report_data", fields, { signal, module: "agentic_crm" });
+  const res = await apiGetForm("booking_report_data", fields, { signal, module: "agentic_crm" });
   return res?.data || {};
 }
 

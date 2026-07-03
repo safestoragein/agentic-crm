@@ -25,6 +25,7 @@ import { scoreQuote } from "@/lib/scoring";
 import { slaFor, fmtDur } from "@/lib/sla";
 import QuoteCard from "@/components/QuoteCard";
 import QuoteTable from "@/components/QuoteTable";
+import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import AdminOnly from "@/components/AdminOnly";
 
 const SLA_LABELS = {
@@ -57,7 +58,8 @@ function SlaBoardPageInner() {
   const [view, setView] = useState("all");
   const [city, setCity] = useState("");
   const [sort, setSort] = useState("booking");
-  const [tableView, setTableView] = useState(false); // cards | table
+  const [tableView, setTableView] = useState(true); // cards | table — default to table
+  const [followUpFor, setFollowUpFor] = useState(null); // quick follow-up modal target
   // Engagement maps (same sources as /quotations) — power the rich card badges.
   const [emailStatus, setEmailStatus] = useState({});
   const [otpIds, setOtpIds] = useState(() => new Set());
@@ -325,7 +327,7 @@ function SlaBoardPageInner() {
       {/* Table view (with lifecycle) */}
       {list && tableView && shown.length > 0 && (
         <div className="mt-4">
-          <QuoteTable rows={shown.map((x) => x.q)} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} />
+          <QuoteTable rows={shown.map((x) => x.q)} getBooking={(q) => bookingMap.get(String(q.id))} getLife={(q) => lifecycleMap.get(String(q.id))} onQuickFollowUp={(q) => setFollowUpFor(q)} />
         </div>
       )}
 
@@ -371,6 +373,23 @@ function SlaBoardPageInner() {
           </div>
         )}
       </div>
+
+      {followUpFor && (
+        <QuickFollowUpModal
+          entity="customer"
+          id={followUpFor.id}
+          name={followUpFor.name}
+          subtitle={followUpFor.uid || `ID ${followUpFor.id}`}
+          follow_up={followUpFor.status}
+          follow_up_date={followUpFor.followDate}
+          follow_up_note={followUpFor.noteFull}
+          onClose={() => setFollowUpFor(null)}
+          onSaved={() => {
+            setFollowUpFor(null);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

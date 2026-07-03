@@ -49,7 +49,7 @@ function removeStored(key) {
 }
 
 export async function login(email, password, { signal } = {}) {
-  const payload = await apiGet("get_crm_login_credentials", { signal });
+  const payload = await apiGet("get_crm_login_credentials", { signal, noCache: true });
   const users = toList(payload);
 
   const cleanEmail = email.trim().toLowerCase();

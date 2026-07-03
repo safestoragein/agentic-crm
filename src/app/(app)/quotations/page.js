@@ -96,7 +96,7 @@ export default function QuotationsPage() {
   const [status, setStatus] = useState(""); // follow_up status filter
   const [sort, setSort] = useState("booking"); // default: highest booking probability first
   const [page, setPage] = useState(1);
-  const [view, setView] = useState("comfort"); // comfort | compact | table
+  const [view, setView] = useState("table"); // comfort | compact | table — default to table
   const compact = view === "compact";
   const [selected, setSelected] = useState(null);
   const [followUpQuote, setFollowUpQuote] = useState(null); // open the log-activity modal
@@ -608,7 +608,7 @@ export default function QuotationsPage() {
       {/* Table view — same data, tabular (with lifecycle). Shown for all tabs. */}
       {list && !searchOnly && view === "table" && pageRows.length > 0 && (
         <div className="mt-3">
-          <QuoteTable rows={pageRows} getBooking={(q) => bookingMap.get(q.id)} getLife={(q) => lifecycleMap.get(q.id)} />
+          <QuoteTable rows={pageRows} getBooking={(q) => bookingMap.get(q.id)} getLife={(q) => lifecycleMap.get(q.id)} onQuickFollowUp={(q) => setQuickFollowFor(q)} />
         </div>
       )}
 
