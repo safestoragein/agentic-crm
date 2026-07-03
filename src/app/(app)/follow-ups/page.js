@@ -163,6 +163,34 @@ export default function FollowUpsPage() {
       .sort((a, b) => String(b.followDate).localeCompare(String(a.followDate)) || String(a.name).localeCompare(String(b.name)));
   }, [allItems, from, to, city, status, view, query]);
 
+  // Same scope as `rows` (view/date + city + search) but WITHOUT the status
+  // filter, so the status breakdown cards below always show every status's own
+  // count and can act as a one-tap status filter.
+  const statusBase = useMemo(() => {
+    let base = allItems;
+    if (view === "waiting") base = base.filter((r) => r.bucket === "overdue" || r.bucket === "today");
+    else if (view === "overdue") base = base.filter((r) => r.bucket === "overdue");
+    else if (view === "today") base = base.filter((r) => r.bucket === "today");
+    else base = base.filter((r) => r.followDate >= from && r.followDate <= to);
+    const q = query.trim().toLowerCase();
+    return base
+      .filter((r) => !city || r.city === city)
+      .filter((r) => !q || matchesQuery(r, q));
+  }, [allItems, from, to, city, view, query]);
+
+  // Count of follow-ups per follow_up status (RNR, Contacted, …), highest first.
+  // Blank statuses collapse into a single non-clickable "No status" bucket.
+  const statusBreakdown = useMemo(() => {
+    const m = new Map();
+    for (const r of statusBase) {
+      const key = normStatus(r.status) || "__none";
+      m.set(key, (m.get(key) || 0) + 1);
+    }
+    return [...m.entries()]
+      .map(([key, count]) => ({ key, count, label: key === "__none" ? "No status" : prettyStatus(key) }))
+      .sort((a, b) => b.count - a.count);
+  }, [statusBase]);
+
   const cities = useMemo(
     () => [...new Set(allItems.map((r) => r.city).filter(Boolean))].sort(),
     [allItems]
@@ -344,6 +372,42 @@ export default function FollowUpsPage() {
         <Kpi label="Due today" value={counts.today} icon={Clock} tone="amber" />
         {!view && <Kpi label="Upcoming" value={counts.upcoming} icon={CheckCircle2} tone="emerald" />}
       </div>
+
+      {/* Follow-up status breakdown — one card per follow_up status (RNR, Contacted,
+          …). Tap a card to filter the list to that status; tap again to clear. */}
+      {data && statusBreakdown.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            By follow-up status
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {statusBreakdown.map(({ key, count, label }) => {
+              const clickable = key !== "__none";
+              const active = clickable && status && normStatus(status) === key;
+              return (
+                <button
+                  key={key}
+                  onClick={clickable ? () => setStatus(active ? "" : key) : undefined}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold shadow-sm transition-colors ${
+                    active
+                      ? "border-indigo-500 bg-indigo-600 text-white"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-slate-50"
+                  } ${clickable ? "cursor-pointer" : "cursor-default"}`}
+                >
+                  {label}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ${
+                      active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* cohort banner (from a dashboard lever) */}
       {view && (
