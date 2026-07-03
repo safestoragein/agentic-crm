@@ -120,8 +120,18 @@ export default function QuotationDetailPage() {
 
   // Effective display values: stored (untouched) so the page matches the old
   // dashboard exactly, or the live recompute once the rep edits a charge.
-  const transportTotal = dirty.transport ? transportCalc.total : Math.ceil(num(q?.pickup_charges));
-  const transportDue = dirty.transport ? transportCalc.due : Math.ceil(num(q?.transport_due_charges));
+  // The old dashboard shows total_pickup_charges_with_gst as "Total transport
+  // charges" and transport_due_charges as "Due" (it does NOT recompute transport
+  // on load). We must read the SAME two fields — `pickup_charges` differs from
+  // total_pickup_charges_with_gst on some quotes (it folds in the pallet
+  // surcharge), which made the new total read ~₹1000 high vs the old dashboard.
+  const transportTotal = dirty.transport ? transportCalc.total : Math.ceil(num(q?.total_pickup_charges_with_gst));
+  // Due = Total − ₹1000 token − any extra token, matching the old dashboard
+  // (which always shows Due = Total − token). Deriving it from the corrected
+  // Total is robust to quotes whose stored transport_due_charges is inconsistent.
+  const transportDue = dirty.transport
+    ? transportCalc.due
+    : Math.max(transportTotal - transportCalc.token - num(q?.transport_token_amtextra), 0);
   // Default (unedited) total = the stored GST-inclusive amount MINUS the existing
   // storage coupon, so "Total storage charges" matches the old dashboard's
   // coupon-applied figure. The multi-month prices derive from that same total.
