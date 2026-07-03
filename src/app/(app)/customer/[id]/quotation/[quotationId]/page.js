@@ -101,28 +101,36 @@ export default function QuotationDetailPage() {
     return { base, mf, total, token, due };
   }, [form, q]);
 
-  // Live storage recalculation — verbatim port of do_storage_calculation.
-  // base × multi-factor → +18% GST → minus active coupon → total; then 6/12-month.
+  // Live storage recalculation — port of do_storage_calculation.
+  // base × multi-factor → +18% GST → minus active coupon → total; then 3/6/12-month.
+  // The old dashboard shows the coupon-APPLIED figure as "Total storage charges"
+  // (e.g. ₹3628.50 incl. GST − 20% = ₹2903), and derives the multi-month prices
+  // from it. We match that exactly (round, not ceil, to line up on the rupee).
   const storageCalc = useMemo(() => {
     const base = num(form?.storage_charges);
     const mf = num(q?.storage_multi_factor) || 1;
-    const incGst = Math.ceil(base * mf * 1.18);
+    const gross = base * mf * 1.18; // GST-inclusive (not pre-rounded)
     const activeCoupon = form?.storage_coupen || q?.storage_coupen || ""; // new overrides existing
-    const total = Math.ceil(incGst - couponAmount(activeCoupon, incGst));
-    const month3 = Math.ceil(total * 0.97 * 3);
-    const month6 = Math.ceil(total * 0.9 * 6);
-    const month12 = Math.ceil(total * 0.8 * 12);
-    return { base, mf, incGst, total, month3, month6, month12 };
+    const total = Math.round(gross - couponAmount(activeCoupon, gross));
+    const month3 = Math.round(total * 0.97 * 3);
+    const month6 = Math.round(total * 0.9 * 6);
+    const month12 = Math.round(total * 0.8 * 12);
+    return { base, mf, incGst: Math.round(gross), total, month3, month6, month12 };
   }, [form, q]);
 
   // Effective display values: stored (untouched) so the page matches the old
   // dashboard exactly, or the live recompute once the rep edits a charge.
   const transportTotal = dirty.transport ? transportCalc.total : Math.ceil(num(q?.pickup_charges));
   const transportDue = dirty.transport ? transportCalc.due : Math.ceil(num(q?.transport_due_charges));
-  const storageTotal = dirty.storage ? storageCalc.total : Math.ceil(num(q?.total_storage_charges_with_gst));
-  const storageMonth3 = dirty.storage ? storageCalc.month3 : Math.ceil(storageTotal * 0.97 * 3);
-  const storageMonth6 = dirty.storage ? storageCalc.month6 : Math.ceil(storageTotal * 0.9 * 6);
-  const storageMonth12 = dirty.storage ? storageCalc.month12 : Math.ceil(storageTotal * 0.8 * 12);
+  // Default (unedited) total = the stored GST-inclusive amount MINUS the existing
+  // storage coupon, so "Total storage charges" matches the old dashboard's
+  // coupon-applied figure. The multi-month prices derive from that same total.
+  const storageTotal = dirty.storage
+    ? storageCalc.total
+    : Math.round(num(q?.total_storage_charges_with_gst) - couponAmount(q?.storage_coupen, num(q?.total_storage_charges_with_gst)));
+  const storageMonth3 = dirty.storage ? storageCalc.month3 : Math.round(storageTotal * 0.97 * 3);
+  const storageMonth6 = dirty.storage ? storageCalc.month6 : Math.round(storageTotal * 0.9 * 6);
+  const storageMonth12 = dirty.storage ? storageCalc.month12 : Math.round(storageTotal * 0.8 * 12);
 
   const handleSave = async () => {
     if (!form || saving) return;
