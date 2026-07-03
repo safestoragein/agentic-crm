@@ -883,7 +883,7 @@ function QuoteCard({ q, esc, score, email, otp, booking, life, wh, wa, breach, b
                 <ClipboardList className="h-4 w-4" />
               </IconBtn>
             )}
-            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view" external><Eye className="h-4 w-4" /></IconBtn>
+            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view"><Eye className="h-4 w-4" /></IconBtn>
             {q.contact && (
               <>
                 <IconBtn href={`tel:+91${q.contact}`} title="Call" tone="call"><Phone className="h-4 w-4" /></IconBtn>
@@ -1024,8 +1024,6 @@ function Drawer({ quote, esc, booking, lifecycle, onClose }) {
                 )}
                 <a
                   href={appHref(`/customer/${quote.id}`)}
-                  target="_blank"
-                  rel="noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                 >
                   <Eye className="h-3.5 w-3.5" /> Profile

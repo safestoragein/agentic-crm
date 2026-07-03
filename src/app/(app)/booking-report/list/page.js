@@ -365,7 +365,7 @@ function ReportListInner() {
               {filteredRows.map((r, i) => (
                 <tr key={`${r.id}-${i}`} className="border-b-2 border-slate-100 align-middle transition-colors odd:bg-white even:bg-slate-50/40 last:border-0 hover:bg-indigo-50/50">
                   <td className="px-4 py-3 pl-5">
-                    <a href={appHref(`/customer/${r.id}`)} target="_blank" rel="noreferrer" className="font-semibold text-slate-900 hover:text-indigo-700">{r.name}</a>
+                    <a href={appHref(`/customer/${r.id}`)} className="font-semibold text-slate-900 hover:text-indigo-700">{r.name}</a>
                     {r.uid && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{r.uid}</span>}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 font-bold tabular-nums text-slate-900">{r.phone ? `+91 ${r.phone}` : <span className="text-slate-300">—</span>}</td>
@@ -380,7 +380,7 @@ function ReportListInner() {
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-1.5">
                       {r.phone && <a href={`tel:+91${r.phone}`} title="Call" className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"><Phone className="h-4 w-4" /></a>}
-                      <a href={appHref(`/customer/${r.id}`)} target="_blank" rel="noreferrer" title="View" className="flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"><Eye className="h-4 w-4" /></a>
+                      <a href={appHref(`/customer/${r.id}`)} title="View" className="flex h-8 w-8 items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100"><Eye className="h-4 w-4" /></a>
                       <button
                         onClick={() => setFollowUpFor({ entity: listEntity, id: r.id, name: r.name, subtitle: r.uid || (listEntity === "lead" ? `Lead ${r.id}` : `ID ${r.id}`), follow_up: r.status, follow_up_date: r.followDate, follow_up_note: "" })}
                         title="Add follow-up"
@@ -469,8 +469,6 @@ function ListRow({ r, onFollowUp }) {
       <div className="min-w-0 flex-1">
         <a
           href={r.id ? appHref(`/customer/${r.id}`) : undefined}
-          target="_blank"
-          rel="noreferrer"
           className="block truncate text-sm font-semibold text-slate-800 hover:text-indigo-700"
         >
           {r.name} {r.uid && <span className="text-[11px] font-normal text-slate-400">{r.uid}</span>}

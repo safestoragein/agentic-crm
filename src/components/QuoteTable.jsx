@@ -115,7 +115,7 @@ export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp 
             return (
               <tr key={q.id} className="border-b-2 border-slate-100 align-middle transition-colors odd:bg-white even:bg-slate-50/40 last:border-0 hover:bg-indigo-50/50">
                 <td className="px-4 py-3 pl-5">
-                  <a href={appHref(`/customer/${q.id}`)} target="_blank" rel="noreferrer" className="font-semibold text-slate-900 hover:text-indigo-700">{q.name}</a>
+                  <a href={appHref(`/customer/${q.id}`)} className="font-semibold text-slate-900 hover:text-indigo-700">{q.name}</a>
                   {q.uid && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{q.uid}</span>}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 font-bold tabular-nums text-slate-900">{q.contact ? `+91 ${q.contact}` : <span className="text-slate-300">—</span>}</td>
@@ -161,7 +161,7 @@ export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp 
                         <a href={`https://wa.me/91${q.contact}`} target="_blank" rel="noreferrer" title="WhatsApp" className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.whatsapp}`}><MessageCircle className="h-4 w-4" /></a>
                       </>
                     )}
-                    <a href={appHref(`/customer/${q.id}`)} target="_blank" rel="noreferrer" title="View" className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.view}`}><Eye className="h-4 w-4" /></a>
+                    <a href={appHref(`/customer/${q.id}`)} title="View" className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.view}`}><Eye className="h-4 w-4" /></a>
                   </div>
                 </td>
               </tr>

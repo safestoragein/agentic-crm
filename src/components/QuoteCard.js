@@ -211,7 +211,7 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
                 <ClipboardList className="h-4 w-4" />
               </IconBtn>
             )}
-            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view" external><Eye className="h-4 w-4" /></IconBtn>
+            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view"><Eye className="h-4 w-4" /></IconBtn>
             {q.contact && (
               <>
                 <IconBtn href={`tel:+91${q.contact}`} title="Call" tone="call"><Phone className="h-4 w-4" /></IconBtn>
