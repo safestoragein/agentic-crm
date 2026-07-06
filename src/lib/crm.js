@@ -138,7 +138,15 @@ export async function fetchFollowupsDueToday(userId, { signal } = {}) {
   return toList(res).filter((r) => {
     const d = String(r.follow_up_date || "").slice(0, 10);
     const status = normStatus(r.follow_up);
-    return d === today && status !== "closed";
+    // Already handled today → the rep has done this one, so it's no longer
+    // pending work and shouldn't inflate the badge. Two backend signals mark a
+    // follow-up as done today: followed_up_date (the date it was actually
+    // performed) and follow_up_start_time (stamped when the rep starts the call).
+    // Either counts, since follow_up_date can still read "today" until rescheduled.
+    const doneToday =
+      String(r.followed_up_date || "").slice(0, 10) === today ||
+      parseDateOnly(r.follow_up_start_time) === today;
+    return d === today && status !== "closed" && !doneToday;
   });
 }
 
@@ -972,6 +980,9 @@ function mapQuotationRow(q, today) {
       responseMins,
       source: q.gclid_field ? "Google Ad" : prettySource(q.updated_from),
       createdAt: q.created_at,
+      // When the follow-up was last actually performed (vs followDate = the next
+      // scheduled date). Lets "due today" views drop items already done today.
+      followedUpDate: parseDateOnly(q.followed_up_date),
       // When the lead/customer was created (DATE(customer_created_at)). The date
       // window keys off this to match the backend leads view.
       customerDate: parseDateOnly(q.customer_date),

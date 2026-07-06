@@ -809,9 +809,15 @@ function bucketCohort(rows) {
   const overdue = [];
   const dueToday = [];
   const upcoming = [];
+  const today = ymd();
   for (const r of rows) {
     if (normStatus(r.status) === "closed") continue;
     if (!r.followDate) continue;
+    // Already handled today → the rep has completed this one, so drop it from
+    // "Due today" (keeps the page in step with the sidebar badge / dashboard count).
+    const doneToday =
+      r.followedUpDate === today || String(r.followUpStartTime || "").slice(0, 10) === today;
+    if (r.bucket === "today" && doneToday) continue;
     const digits = String(r.contact || "").replace(/\D/g, "");
     const contact = digits.length >= 10 ? digits.slice(-10) : digits;
     const item = {
