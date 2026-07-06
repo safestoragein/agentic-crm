@@ -439,7 +439,7 @@ function Row({ c, onFollowUp }) {
               <a href={appHref(`/customer/${c.customer_id}`)} className="truncate text-sm font-semibold text-slate-800 group-hover:text-indigo-700">
                 {c.customer_name || "Unknown"}
               </a>
-              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+              <span className="shrink-0 rounded-md bg-indigo-50 px-2 py-0.5 text-sm font-bold tabular-nums text-indigo-700 ring-1 ring-indigo-100">
                 {c.customer_unique_id || `ID ${c.customer_id}`}
               </span>
             </div>
