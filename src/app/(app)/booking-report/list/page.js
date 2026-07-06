@@ -211,9 +211,11 @@ function ReportListInner() {
   const total = isQuote ? quotes?.length ?? 0 : rows?.length ?? 0;
 
   // Cohort summary tiles (quotation types) — derived from the same data, no new fetch.
-  const pipelineValue = useMemo(() => (quotes || []).reduce((s, q) => s + (Number(q.value) || 0), 0), [quotes]);
+  // Stats reflect the active filters (rep / status / search), so they always
+  // match the list — base them on filteredQuotes, not the raw fetched set.
+  const pipelineValue = useMemo(() => filteredQuotes.reduce((s, q) => s + (Number(q.value) || 0), 0), [filteredQuotes]);
   const stats = useMemo(() => {
-    const qs = quotes || [];
+    const qs = filteredQuotes;
     return {
       total: qs.length,
       value: pipelineValue,
@@ -222,7 +224,7 @@ function ReportListInner() {
       notContacted: qs.filter((q) => !q.contacted).length,
       rnr: qs.filter((q) => q.statusKey === "rnr").length,
     };
-  }, [quotes, pipelineValue]);
+  }, [filteredQuotes, pipelineValue]);
 
   return (
     <div className="px-5 py-6">

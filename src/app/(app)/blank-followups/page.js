@@ -115,10 +115,23 @@ export default function BlankFollowupsPage() {
   }, [list]);
 
   const counts = useMemo(() => {
-    const c = { all: fresh.length, today: 0, yesterday: 0, overdue: overdue.length };
-    for (const q of fresh) (String(q.createdAt).slice(0, 10) === today ? (c.today++) : (c.yesterday++));
+    // Reflect the search box so the tab badges match the visible list.
+    const s = query.trim().toLowerCase();
+    const digits = s.replace(/\D/g, "");
+    const match = (q) =>
+      !s ||
+      (q.name || "").toLowerCase().includes(s) ||
+      (q.contact || "").includes(s) ||
+      (q.email || "").toLowerCase().includes(s) ||
+      String(q.id || "").includes(s) ||
+      String(q.uid || "").toLowerCase().includes(s) ||
+      (!!digits && String(q.contact || "").replace(/\D/g, "").includes(digits));
+    const f = fresh.filter(match);
+    const o = overdue.filter(match);
+    const c = { all: f.length, today: 0, yesterday: 0, overdue: o.length };
+    for (const q of f) (String(q.createdAt).slice(0, 10) === today ? (c.today++) : (c.yesterday++));
     return c;
-  }, [fresh, overdue, today]);
+  }, [fresh, overdue, today, query]);
 
   const rows = useMemo(() => {
     let r = tab === "overdue" ? overdue : fresh;

@@ -207,15 +207,28 @@ export default function FollowUpsPage() {
   const fu = data?.followUps;
   const allItems = useMemo(() => (fu ? [...fu.overdue, ...fu.dueToday, ...fu.upcoming] : []), [fu]);
 
+  // allItems narrowed by the filters that should affect every stat tile (city +
+  // search). Buckets stay time-based (no date-window here) so "Upcoming" isn't
+  // zeroed out in the default today window.
+  const scoped = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return allItems
+      .filter((r) => !city || r.city === city)
+      .filter((r) => !q || matchesQuery(r, q));
+  }, [allItems, city, query]);
+
   const inRangeCount = useMemo(
-    () => (view ? allItems.length : allItems.filter((r) => r.followDate >= from && r.followDate <= to).length),
-    [allItems, from, to, view]
+    () => (view ? scoped.length : scoped.filter((r) => r.followDate >= from && r.followDate <= to).length),
+    [scoped, from, to, view]
   );
-  const counts = {
-    overdue: fu?.overdue?.length ?? 0,
-    today: fu?.dueToday?.length ?? 0,
-    upcoming: fu?.upcoming?.length ?? 0,
-  };
+  const counts = useMemo(
+    () => ({
+      overdue: scoped.filter((r) => r.bucket === "overdue").length,
+      today: scoped.filter((r) => r.bucket === "today").length,
+      upcoming: scoped.filter((r) => r.bucket === "upcoming").length,
+    }),
+    [scoped]
+  );
 
   const rows = useMemo(() => {
     let base = allItems;

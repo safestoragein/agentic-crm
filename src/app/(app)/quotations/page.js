@@ -297,22 +297,41 @@ export default function QuotationsPage() {
     return [...new Set(inRange.map((q) => q.city).filter(Boolean))].sort();
   }, [inRange]);
 
-  // Total quoted value (storage + pickup, incl. GST) created in the window.
-  const pipelineValue = useMemo(() => inRange.reduce((s, q) => s + (q.value || 0), 0), [inRange]);
+  // Base for the KPI tiles + tab counts: everything after the date/search + city
+  // + status filters, but BEFORE the per-tab test — so every stat and tab badge
+  // reflects whatever filters are active (mirrors how `filtered` applies them).
+  const statBase = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let base;
+    if (q) {
+      const byId = new Map();
+      for (const r of list || []) if (matchesQuery(r, q)) byId.set(r.id, r);
+      for (const r of searchRows) if (matchesQuery(r, q)) byId.set(r.id, byId.get(r.id) || r);
+      base = [...byId.values()];
+    } else {
+      base = inRange;
+    }
+    if (city) base = base.filter((r) => r.city === city);
+    if (status) base = base.filter((r) => normStatus(r.status) === normStatus(status));
+    return base;
+  }, [list, searchRows, inRange, query, city, status]);
+
+  // Total quoted value (storage + pickup, incl. GST) over the current filters.
+  const pipelineValue = useMemo(() => statBase.reduce((s, q) => s + (q.value || 0), 0), [statBase]);
 
   const counts = useMemo(() => {
     const c = {};
     for (const t of TABS) {
       c[t.key] = t.exceptions
-        ? inRange.filter((q) => escMap.get(q.id)?.triggers.length).length
-        : inRange.filter(t.test).length;
+        ? statBase.filter((q) => escMap.get(q.id)?.triggers.length).length
+        : statBase.filter(t.test).length;
     }
     return c;
-  }, [inRange, escMap]);
+  }, [statBase, escMap]);
 
-  // Headline stats for the tile strip (over the date window).
+  // Headline stats for the tile strip (reflect the active filters).
   const stats = useMemo(() => {
-    const total = inRange.length;
+    const total = statBase.length;
     const won = counts.won || 0;
     return {
       total,
@@ -324,12 +343,12 @@ export default function QuotationsPage() {
       notContacted: counts.not_contacted || 0,
       rnr: counts.rnr || 0,
     };
-  }, [inRange, counts, pipelineValue]);
+  }, [statBase, counts, pipelineValue]);
 
   // Engagement stats (emails, OTP, warehouse) over the window.
   const engStats = useMemo(() => {
     let sent = 0, delivered = 0, opened = 0, clicked = 0, otpv = 0, whSent = 0, whViewed = 0;
-    for (const q of inRange) {
+    for (const q of statBase) {
       const id = String(q.id);
       const es = emailStatus[id];
       const raw = es ? String(es.raw || "").toLowerCase().replace(/^email\./, "") : "";
@@ -344,7 +363,7 @@ export default function QuotationsPage() {
       if (["opened", "clicked"].includes(wraw) || sig.warehouseViewed) whViewed++;
     }
     return { sent, delivered, opened, clicked, otpv, whSent, whViewed };
-  }, [inRange, emailStatus, bookingSignals, otpIds]);
+  }, [statBase, emailStatus, bookingSignals, otpIds]);
 
   // Live 15-min first-response SLA breaches: uncontacted, not done, created >15 min ago.
   const breaches = useMemo(() => {
