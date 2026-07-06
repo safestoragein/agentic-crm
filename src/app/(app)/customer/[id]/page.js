@@ -1306,6 +1306,7 @@ function TransactionSub({ transactions }) {
                     <Th>Invoice</Th>
                     <Th>Date</Th>
                     <Th className="text-right">Amount</Th>
+                    <Th className="text-right">Invoice PDF</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1314,6 +1315,9 @@ function TransactionSub({ transactions }) {
                       <td className="px-4 py-2.5 font-medium text-slate-700">{t.invoice_no || "—"}</td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{fmtDateTime(t.transaction_created_at)}</td>
                       <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-slate-900">{rupee(t.paid_amount)}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <InvoiceActions t={t} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1323,6 +1327,7 @@ function TransactionSub({ transactions }) {
                       Total received
                     </td>
                     <td className="px-4 py-2.5 text-right font-bold tabular-nums text-emerald-700">{rupee(received)}</td>
+                    <td />
                   </tr>
                 </tfoot>
               </table>
@@ -1331,6 +1336,46 @@ function TransactionSub({ transactions }) {
         )}
       </Panel>
     </div>
+  );
+}
+
+// Invoice PDF download(s) for a transaction. Mirrors the legacy payment section:
+// combined-charges transactions (on/after 2022-04-01) get separate Transport +
+// Storage invoices; everything else gets one Invoice. Opens the CRM-facing
+// backend endpoint (payment/crm_invoice/*) which needs no admin-panel login.
+function InvoiceActions({ t }) {
+  const cid = t.customer_id;
+  const tid = t.cust_transaction_id;
+  if (!cid || !tid) return <span className="text-slate-300">—</span>;
+  const url = (kind) =>
+    `${ADMIN_BASE}/payment/crm_invoice/${kind}?customer_id=${encodeURIComponent(cid)}&cust_transaction_id=${encodeURIComponent(tid)}`;
+  const combined =
+    String(t.is_combined_charges) === "1" && String(t.transaction_created_at || "").slice(0, 10) >= "2022-04-01";
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {combined ? (
+        <>
+          <InvoiceLink href={url("transport_invoice")}>Transport</InvoiceLink>
+          <InvoiceLink href={url("storage_invoice")}>Storage</InvoiceLink>
+        </>
+      ) : (
+        <InvoiceLink href={url("invoice")}>Invoice</InvoiceLink>
+      )}
+    </div>
+  );
+}
+
+function InvoiceLink({ href, children }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-600 hover:bg-indigo-50"
+    >
+      <FileDown className="h-3.5 w-3.5" /> {children}
+    </a>
   );
 }
 
