@@ -551,7 +551,7 @@ function QuotationsTab({ quotes, customer, onChanged }) {
   );
 }
 
-function ActionBtn({ href, onClick, icon: Icon, tone, disabled, newTab = true, children }) {
+function ActionBtn({ href, onClick, icon: Icon, tone, disabled, newTab, children }) {
   const tones = {
     primary: "border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700",
     danger: "border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100",
@@ -565,7 +565,13 @@ function ActionBtn({ href, onClick, icon: Icon, tone, disabled, newTab = true, c
     </>
   );
   if (href) {
-    const linkProps = newTab ? { target: "_blank", rel: "noreferrer" } : {};
+    // Internal app links (e.g. the new-quotation editor at /customer/../quotation/..)
+    // open in the SAME tab so the team isn't left juggling a pile of tabs; external
+    // links (old site, PDF/file downloads) still open in a new tab. `newTab`
+    // overrides when a caller needs to force it.
+    const external = /^https?:\/\//.test(href);
+    const openNew = newTab ?? external;
+    const linkProps = openNew ? { target: "_blank", rel: "noreferrer" } : {};
     return (
       <a href={appHref(href)} {...linkProps} className={className}>
         {content}
