@@ -113,6 +113,21 @@ export default function CreateQuotationPage() {
     setExistName("");
   };
 
+  // Warehouse arrival ⇒ own transport, no pickup. Clear any pickup details and
+  // the computed distance so a stale address can't add a transport charge later.
+  const setWarehouseArrival = (checked) => {
+    setForm((p) => ({
+      ...p,
+      warehouse_arrival: checked,
+      ...(checked ? { pickup_address: "", pickup_floor: "", pickup_lift: "" } : {}),
+    }));
+    if (checked) {
+      setPickupLoc({ lat: null, lng: null });
+      setDist(null);
+    }
+    setError("");
+  };
+
   const validate = () => {
     if (!form.customer_initial) return "Please select a title.";
     if (!form.customer_name.trim()) return "Please enter the customer name.";
@@ -120,9 +135,14 @@ export default function CreateQuotationPage() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.customer_email.trim())) return "Please enter a valid email address.";
     if (!form.customer_local_city) return "Please select the city.";
     if (!form.relationship_manager_id) return "Please assign a CRM user.";
-    if (!form.pickup_address.trim()) return "Please enter the pickup address.";
-    if (!form.pickup_floor) return "Please select the pickup floor.";
-    if (!form.pickup_lift) return "Please select the lift option.";
+    // Warehouse arrival = the customer brings goods to the warehouse themselves
+    // (own transport), so pickup address / floor / lift don't apply — same as the
+    // legacy add_customer flow.
+    if (!form.warehouse_arrival) {
+      if (!form.pickup_address.trim()) return "Please enter the pickup address.";
+      if (!form.pickup_floor) return "Please select the pickup floor.";
+      if (!form.pickup_lift) return "Please select the lift option.";
+    }
     if (!(Number(form.storage_month) >= 1)) return "Please enter the storage duration in months.";
     return "";
   };
@@ -254,50 +274,72 @@ export default function CreateQuotationPage() {
             </select>
           </Field>
           <div className="sm:col-span-2">
-            <Field label="Pickup address" required>
-              <PlacesAutocompleteInput
-                value={form.pickup_address}
-                onChange={(v) => set("pickup_address", v)}
-                onPlace={({ address, lat, lng }) => {
-                  if (address) set("pickup_address", address);
-                  setPickupLoc({ lat, lng });
-                  runDistance(lat, lng, form.customer_local_city);
-                }}
-                className={inputCls}
-                placeholder="Start typing building name, area, city…"
-              />
-              {dist && (
-                dist.error ? (
-                  <p className="mt-1.5 text-xs font-semibold text-rose-600">No warehouse found for the selected city to compute distance.</p>
-                ) : (
-                  <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-semibold ${dist.intercity ? "text-rose-600" : "text-slate-700"}`}>
-                    {dist.intercity && <AlertTriangle className="h-4 w-4 shrink-0" />}
-                    Distance from warehouse {dist.warehouse} is {dist.km.toFixed(1)} km.{dist.intercity ? " It will come under intercity." : ""}
-                  </p>
-                )
-              )}
+            <Field label="Transport">
+              <label className="flex items-center gap-2 py-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={form.warehouse_arrival}
+                  onChange={(e) => setWarehouseArrival(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Own transport (warehouse arrival)
+              </label>
             </Field>
           </div>
-          <Field label="Pickup floor" required>
-            <select value={form.pickup_floor} onChange={(e) => set("pickup_floor", e.target.value)} className={inputCls}>
-              <option value="">Select floor</option>
-              {FLOORS.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Lift" required>
-            <select value={form.pickup_lift} onChange={(e) => set("pickup_lift", e.target.value)} className={inputCls}>
-              <option value="">Select</option>
-              {LIFTS.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </Field>
+
+          {form.warehouse_arrival ? (
+            <div className="sm:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+              The customer brings goods to the warehouse — no pickup address or transport charge needed.
+            </div>
+          ) : (
+            <>
+              <div className="sm:col-span-2">
+                <Field label="Pickup address" required>
+                  <PlacesAutocompleteInput
+                    value={form.pickup_address}
+                    onChange={(v) => set("pickup_address", v)}
+                    onPlace={({ address, lat, lng }) => {
+                      if (address) set("pickup_address", address);
+                      setPickupLoc({ lat, lng });
+                      runDistance(lat, lng, form.customer_local_city);
+                    }}
+                    className={inputCls}
+                    placeholder="Start typing building name, area, city…"
+                  />
+                  {dist && (
+                    dist.error ? (
+                      <p className="mt-1.5 text-xs font-semibold text-rose-600">No warehouse found for the selected city to compute distance.</p>
+                    ) : (
+                      <p className={`mt-1.5 flex items-center gap-1.5 text-sm font-semibold ${dist.intercity ? "text-rose-600" : "text-slate-700"}`}>
+                        {dist.intercity && <AlertTriangle className="h-4 w-4 shrink-0" />}
+                        Distance from warehouse {dist.warehouse} is {dist.km.toFixed(1)} km.{dist.intercity ? " It will come under intercity." : ""}
+                      </p>
+                    )
+                  )}
+                </Field>
+              </div>
+              <Field label="Pickup floor" required>
+                <select value={form.pickup_floor} onChange={(e) => set("pickup_floor", e.target.value)} className={inputCls}>
+                  <option value="">Select floor</option>
+                  {FLOORS.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Lift" required>
+                <select value={form.pickup_lift} onChange={(e) => set("pickup_lift", e.target.value)} className={inputCls}>
+                  <option value="">Select</option>
+                  {LIFTS.map((l) => (
+                    <option key={l} value={l}>
+                      {l}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </>
+          )}
           <Field label="Storage duration (months)" required>
             <input
               value={form.storage_month}
@@ -305,17 +347,6 @@ export default function CreateQuotationPage() {
               className={inputCls}
               inputMode="numeric"
             />
-          </Field>
-          <Field label="Transport">
-            <label className="flex items-center gap-2 py-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={form.warehouse_arrival}
-                onChange={(e) => set("warehouse_arrival", e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              Own transport (warehouse arrival)
-            </label>
           </Field>
         </div>
 
