@@ -349,6 +349,7 @@ function ReportListInner() {
             <thead>
               <tr className="border-b-2 border-slate-200 bg-slate-50 text-left text-[10.5px] font-bold uppercase tracking-wider text-slate-500">
                 <th className="px-4 py-3 pl-5">Customer</th>
+                <th className="px-4 py-3">Customer ID</th>
                 <th className="px-4 py-3">Contact</th>
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">City</th>
@@ -366,7 +367,13 @@ function ReportListInner() {
                 <tr key={`${r.id}-${i}`} className="border-b-2 border-slate-100 align-middle transition-colors odd:bg-white even:bg-slate-50/40 last:border-0 hover:bg-indigo-50/50">
                   <td className="px-4 py-3 pl-5">
                     <a href={appHref(`/customer/${r.id}`)} className="font-semibold text-slate-900 hover:text-indigo-700">{r.name}</a>
-                    {r.uid && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{r.uid}</span>}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {r.uid ? (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-bold text-slate-600">{r.uid}</span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 font-bold tabular-nums text-slate-900">{r.phone ? `+91 ${r.phone}` : <span className="text-slate-300">—</span>}</td>
                   <td className="px-4 py-3">{r.email ? <a href={`mailto:${r.email}`} title={r.email} className="block max-w-[200px] truncate font-medium text-slate-700 hover:text-indigo-600">{r.email}</a> : <span className="text-slate-300">—</span>}</td>
