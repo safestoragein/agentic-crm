@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Bell, MailOpen, MousePointerClick, RefreshCw, Warehouse, X, Phone } from "lucide-react";
 import { fetchRecentEngagement, timeAgoLabel } from "@/lib/crm";
+import { getSession } from "@/lib/auth";
 
 const TONES = {
   indigo: { dot: "bg-indigo-500", text: "text-indigo-700", ring: "ring-indigo-200" },
@@ -101,7 +102,8 @@ export default function AlertCenter() {
   }, [open]);
 
   const poll = useCallback((signal) => {
-    return fetchRecentEngagement({ signal })
+    const s = getSession();
+    return fetchRecentEngagement(s?.user_id, { signal })
       .then((evs) => {
         if (!evs || !evs.length) return;
         const maxId = evs[0].id; // backend returns newest-first
@@ -256,7 +258,10 @@ export default function AlertCenter() {
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="text-sm font-bold text-slate-800">{a.name}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-sm font-bold text-slate-800">{a.name}</span>
+                    <StageBadge booked={a.booked} />
+                  </div>
                   <div className={`text-xs font-semibold ${t.text}`}>{a.message}</div>
                   <div className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
                     {a.city && <span className="capitalize">{a.city}</span>}
@@ -291,12 +296,27 @@ function AlertRow({ a, onClick }) {
         <Icon className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-slate-800">
-          {a.name} <span className="text-[11px] font-normal text-slate-400">{a.uid}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="truncate text-sm font-semibold text-slate-800">{a.name}</span>
+          <span className="text-[11px] font-normal text-slate-400">{a.uid}</span>
+          <StageBadge booked={a.booked} />
         </div>
         <div className={`text-xs font-semibold ${t.text}`}>{a.message}</div>
       </div>
       <span className="shrink-0 text-[11px] text-slate-400">{a.at ? timeAgoLabel(a.at) : ""}</span>
     </button>
+  );
+}
+
+// Shows whether the customer is already booked or still a quotation/lead.
+function StageBadge({ booked }) {
+  return booked ? (
+    <span className="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+      Booked
+    </span>
+  ) : (
+    <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+      Quotation
+    </span>
   );
 }

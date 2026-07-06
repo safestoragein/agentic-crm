@@ -710,8 +710,13 @@ export async function fetchBookingReport({ from, to, city, compareFrom, compareT
 
 // Smart Alert feed — recent engagement events turned into ready-to-show alerts.
 // kind: opened | revisit | clicked | wh_viewed | wh_clicked
-export async function fetchRecentEngagement({ signal } = {}) {
-  const res = await apiGet("recent_engagement", { signal, module: "agentic_crm" });
+export async function fetchRecentEngagement(userId, { signal } = {}) {
+  // Scope to the rep's own customers so a rep only gets alerts for customers
+  // assigned to them (the backend filters on relationship_manager_id).
+  const path = userId
+    ? `recent_engagement?relationship_manager_id=${encodeURIComponent(userId)}`
+    : "recent_engagement";
+  const res = await apiGet(path, { signal, module: "agentic_crm" });
   const mapped = toList(res).map((r) => {
     const ev = String(r.event_type || "").toLowerCase();
     const isClick = ev.includes("clicked");
@@ -733,6 +738,9 @@ export async function fetchRecentEngagement({ signal } = {}) {
       name: r.customer_name || "A customer",
       uid: r.customer_unique_id || "",
       city: r.customer_local_city || "",
+      // Booked customer (is_customer = 1) vs still a quotation/lead (0), so the
+      // alert can show which stage the customer is at.
+      booked: String(r.is_customer) === "1",
       kind,
       message,
       tone,
