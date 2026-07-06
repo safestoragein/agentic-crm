@@ -25,6 +25,10 @@ import { getSession } from "@/lib/auth";
 import { fetchQuotations, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES, normStatus } from "@/lib/crm";
 
 const SLA_MINUTES = 15; // first-response SLA: contact a new lead within 15 min
+// Only raise first-response SLA alerts for recent leads (~4 months). Older
+// customers get re-quoted, which re-stamps created_at, so without this an
+// ancient lead would masquerade as a fresh one and trigger a false alarm.
+const SLA_MAX_LEAD_AGE_DAYS = 120;
 
 // Escalating severity by overdue minutes: 1 = breach, 2 = high (30m+), 3 = critical (60m+).
 function slaSeverity(mins) {
@@ -295,9 +299,16 @@ export default function QuotationsPage() {
   // Live 15-min first-response SLA breaches: uncontacted, not done, created >15 min ago.
   const breaches = useMemo(() => {
     void tick; // recompute on each tick
+    // The first-response SLA only makes sense for genuinely recent leads. An old
+    // customer's created_at gets re-stamped whenever they're re-quoted, so a
+    // 5-year-old lead can look "new" and trigger a false "contact now" alarm.
+    // Gate on customer_date (the original lead date) and ignore anything older
+    // than SLA_MAX_LEAD_AGE_DAYS. Fall back to created_at when it's missing.
     return inRange
       .filter((q) => {
         if (q.contacted || q.done) return false;
+        const leadAgeMin = minutesAgo(q.customerDate || q.createdAt);
+        if (leadAgeMin == null || leadAgeMin > SLA_MAX_LEAD_AGE_DAYS * 1440) return false;
         const m = minutesAgo(q.createdAt);
         return m != null && m > SLA_MINUTES;
       })
