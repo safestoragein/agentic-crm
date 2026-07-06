@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users, Loader2, RefreshCw, Search, Phone, MessageCircle, Mail, Plus, X, ShieldCheck, Clock, CalendarClock, AlertTriangle, UserRound } from "lucide-react";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import DateFilter from "@/components/DateFilter";
+import ExportButton from "@/components/ExportButton";
 import { getSession } from "@/lib/auth";
 import { ymd, normStatus } from "@/lib/crm";
 import { fetchHouseholdLeads, addHouseholdLead, fetchCrmUsers, transferLeads } from "@/lib/leads";
@@ -53,6 +54,20 @@ const VERIFIED = [
   { value: "", label: "Any verification" },
   { value: "yes", label: "Verified" },
   { value: "no", label: "Not verified" },
+];
+
+// Columns for the "Export to Excel" button — the key visible lead fields.
+const LEAD_EXPORT_COLS = [
+  { header: "Name", value: (l) => l.customer_name },
+  { header: "Phone", value: (l) => l.customer_mobile_no },
+  { header: "Email", value: (l) => l.customer_email },
+  { header: "City", value: (l) => l.customer_local_city },
+  { header: "Source", value: (l) => l.source },
+  { header: "Storage type", value: (l) => l.storage_type },
+  { header: "Status", value: (l) => l.follow_up },
+  { header: "Follow-up date", value: (l) => l.follow_up_date },
+  { header: "Assigned rep", value: (l) => `${l.user_fname || ""} ${l.user_lname || ""}`.trim() },
+  { header: "Created date", value: (l) => l.date },
 ];
 
 export default function LeadsPage() {
@@ -189,6 +204,7 @@ export default function LeadsPage() {
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh
           </button>
+          <ExportButton filename="leads" rows={rows} columns={LEAD_EXPORT_COLS} />
         </div>
       </div>
 

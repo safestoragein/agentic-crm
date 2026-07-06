@@ -14,6 +14,7 @@ import {
 import { evaluateEscalation } from "@/lib/escalations";
 import { scoreQuote } from "@/lib/scoring";
 import QuoteCard from "@/components/QuoteCard";
+import ExportButton from "@/components/ExportButton";
 
 // Customers created yesterday & today that have NOT been followed up yet (blank
 // or un-actioned follow-up) — the fresh ones that need first contact.
@@ -22,6 +23,26 @@ function ymdOffset(days = 0) {
   const d = new Date(Date.now() + days * 86400000);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+// Guard + format any date-ish value to YYYY-MM-DD for the Excel export.
+function ymd(v) {
+  const s = String(v || "").trim();
+  return s ? s.slice(0, 10) : "";
+}
+
+// Column spec for the "Export to Excel" button — the key visible fields, using
+// the actual row field names from fetchQuotations.
+const BLANK_EXPORT_COLS = [
+  { header: "Customer ID", value: (r) => r.uid || "" },
+  { header: "Name", value: (r) => r.name || "" },
+  { header: "Phone", value: (r) => r.contact || "" },
+  { header: "Email", value: (r) => r.email || "" },
+  { header: "City", value: (r) => r.city || "" },
+  { header: "Status", value: (r) => r.status || "" },
+  { header: "Follow-up date", value: (r) => ymd(r.followDate) },
+  { header: "Created", value: (r) => ymd(r.createdAt) },
+  { header: "Rep", value: (r) => r.rep || "" },
+];
 
 const TABS = [
   { key: "all", label: "All" },
@@ -232,12 +253,15 @@ export default function BlankFollowupsPage() {
         <div>
           <p className="mt-1 text-sm text-slate-500">Blank follow-ups (created yesterday &amp; today, not yet contacted) and overdue follow-ups (follow-up date already passed) — work these first.</p>
         </div>
-        <button
-          onClick={() => load()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-        >
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButton filename="blank-overdue-followups" rows={quoteRows} columns={BLANK_EXPORT_COLS} />
+          <button
+            onClick={() => load()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh
+          </button>
+        </div>
       </div>
 
       {error && <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}

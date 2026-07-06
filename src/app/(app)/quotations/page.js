@@ -74,6 +74,7 @@ import DateFilter from "@/components/DateFilter";
 import FollowUpModal from "@/components/FollowUpModal";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import QuoteTable from "@/components/QuoteTable";
+import ExportButton from "@/components/ExportButton";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PAGE_SIZE = 50;
@@ -89,6 +90,21 @@ const TABS = [
   { key: "negotiation", label: "Negotiation", test: (q) => /negoti/i.test(q.stage) },
   { key: "rnr", label: "RNR", test: (q) => q.statusKey === "rnr" },
   { key: "won", label: "Won", test: (q) => q.won },
+];
+
+// Columns for the "Export to Excel" of the current (filtered) quotations view.
+const QUOTE_EXPORT_COLS = [
+  { header: "Customer ID", value: (r) => r.uid },
+  { header: "Name", value: (r) => r.name },
+  { header: "Phone", value: (r) => r.contact },
+  { header: "Email", value: (r) => r.email },
+  { header: "City", value: (r) => r.city },
+  { header: "Status", value: (r) => r.status },
+  { header: "Stage", value: (r) => r.stage },
+  { header: "Follow-up date", value: (r) => r.followDate || "" },
+  { header: "Created", value: (r) => r.createdAt },
+  { header: "Rep", value: (r) => r.rep },
+  { header: "Quoted value", value: (r) => r.value || 0 },
 ];
 
 export default function QuotationsPage() {
@@ -609,6 +625,8 @@ export default function QuotationsPage() {
           <DensityBtn on={view === "compact"} onClick={() => setView("compact")}>Compact</DensityBtn>
           <DensityBtn on={view === "table"} onClick={() => setView("table")}>Table</DensityBtn>
         </div>
+
+        <ExportButton filename="quotations" rows={filtered} columns={QUOTE_EXPORT_COLS} className="ml-auto" />
       </div>
 
       {/* Lifecycle colour key (shown once for all cards) */}

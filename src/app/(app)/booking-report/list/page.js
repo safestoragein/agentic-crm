@@ -23,9 +23,40 @@ import DateFilter from "@/components/DateFilter";
 import QuoteCard from "@/components/QuoteCard";
 import QuoteTable from "@/components/QuoteTable";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
+import ExportButton from "@/components/ExportButton";
 
 // Types backed by quotation data → render the rich QuoteCard (booking score etc.).
 const QUOTE_TYPES = new Set(["quotation_customers", "follow_up_customers"]);
+
+// Columns for the "Export to Excel" button on the booking/lead list. Mirrors the
+// visible table; the charge/coupon columns only carry data for booked_customers.
+const BOOKING_EXPORT_COLS = [
+  { header: "Customer ID", value: (r) => r.uid || "" },
+  { header: "Name", value: (r) => r.name || "" },
+  { header: "Phone", value: (r) => r.phone || "" },
+  { header: "Email", value: (r) => r.email || "" },
+  { header: "City", value: (r) => r.city || "" },
+  { header: "Storage charges", value: (r) => Number(r.storageCharges) || 0 },
+  { header: "Transport charges", value: (r) => Number(r.transportCharges) || 0 },
+  { header: "Storage coupon", value: (r) => r.storageCoupon || "" },
+  { header: "Transport coupon", value: (r) => r.transportCoupon || "" },
+  { header: "Status", value: (r) => r.status || "" },
+  { header: "Rep", value: (r) => r.rep || "" },
+];
+
+// Columns for the quotation-type report lists (quotation_customers / follow_up_customers).
+const QUOTE_LIST_EXPORT_COLS = [
+  { header: "Customer ID", value: (r) => r.uid || "" },
+  { header: "Name", value: (r) => r.name || "" },
+  { header: "Phone", value: (r) => r.contact || "" },
+  { header: "Email", value: (r) => r.email || "" },
+  { header: "City", value: (r) => r.city || "" },
+  { header: "Status", value: (r) => r.status || "" },
+  { header: "Stage", value: (r) => r.stage || "" },
+  { header: "Follow-up date", value: (r) => r.followDate || "" },
+  { header: "Rep", value: (r) => r.rep || "" },
+  { header: "Quoted value", value: (r) => r.value || 0 },
+];
 
 function prettyStatus(s) {
   return String(s)
@@ -270,6 +301,8 @@ function ReportListInner() {
             <button onClick={() => setTableView(true)} className={`px-3 py-2 text-xs font-semibold transition-colors ${tableView ? "bg-indigo-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"}`}>Table</button>
           </div>
         )}
+        {!isQuote && <ExportButton filename="booking-report" rows={filteredRows} columns={BOOKING_EXPORT_COLS} className="ml-auto" />}
+        {isQuote && <ExportButton filename="quotation-list" rows={filteredQuotes} columns={QUOTE_LIST_EXPORT_COLS} className="ml-auto" />}
       </div>
 
       {error && <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p>}

@@ -41,6 +41,7 @@ import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import DateFilter from "@/components/DateFilter";
 import QuoteTable from "@/components/QuoteTable";
 import QuoteCard from "@/components/QuoteCard";
+import ExportButton from "@/components/ExportButton";
 
 // A rep's focused follow-up queue: overdue → due-today → upcoming, with one-tap
 // call / WhatsApp. Split into Quotations (all quotes bucketed by follow_up_date,
@@ -93,6 +94,27 @@ const STATUS_TONE_KEY = {
 function statusTone(key) {
   return STATUS_TONES[STATUS_TONE_KEY[key] || "slate"];
 }
+
+// Columns for the "Export to Excel" button — the key visible fields on the
+// bucketed follow-up items (bucketCohort / bucketLeads shape).
+const FOLLOWUP_EXPORT_COLS = [
+  { header: "Name", value: (r) => r.name || "" },
+  { header: "Phone", value: (r) => r.contact || "" },
+  { header: "Email", value: (r) => r.email || "" },
+  { header: "City", value: (r) => r.city || "" },
+  { header: "Stage", value: (r) => r.stage || "" },
+  { header: "Status", value: (r) => prettyWords(r.status) || "" },
+  {
+    header: "Follow-up date",
+    value: (r) =>
+      r.followDate instanceof Date
+        ? r.followDate.toISOString().slice(0, 10)
+        : r.followDate || "",
+  },
+  { header: "Bucket", value: (r) => r.bucket || "" },
+  { header: "Rep", value: (r) => r.rep || "" },
+  { header: "Note", value: (r) => r.noteFull || r.note || "" },
+];
 
 export default function FollowUpsPage() {
   const [mode, setMode] = useState("quotations"); // "quotations" | "leads"
@@ -404,6 +426,7 @@ export default function FollowUpsPage() {
               </button>
             ))}
           </div>
+          <ExportButton filename="follow-ups" rows={rows} columns={FOLLOWUP_EXPORT_COLS} />
           <button
             onClick={() => load()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"

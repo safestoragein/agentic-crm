@@ -26,6 +26,7 @@ import {
 import { fetchCustomers, fetchCustomerFilters, searchCustomerCreators } from "@/lib/customers";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import DateFilter from "@/components/DateFilter";
+import ExportButton from "@/components/ExportButton";
 import { rangeForPreset } from "@/lib/crm";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -66,6 +67,23 @@ const EMPTY_FILTERS = {
   dateFrom: "",
   dateTo: "",
 };
+
+// Columns for the "Export to Excel" button — mirrors the key visible table
+// columns, formatting dates/nulls the same way the rows render them.
+const CUSTOMER_EXPORT_COLS = [
+  { header: "Customer", value: (c) => c.customer_name || "" },
+  { header: "Customer ID", value: (c) => c.customer_unique_id || (c.customer_id ? `ID ${c.customer_id}` : "") },
+  { header: "Phone", value: (c) => (c.customer_contact1 ? `+91 ${c.customer_contact1}` : "") },
+  { header: "Email", value: (c) => c.customer_email || "" },
+  { header: "City", value: (c) => c.customer_local_city || "" },
+  { header: "Status", value: (c) => statusBadge(c.status).label },
+  { header: "Follow-up", value: (c) => (c.follow_up ? prettyWords(c.follow_up) : "") },
+  { header: "Follow-up date", value: (c) => fmtDate(c.follow_up_date) },
+  { header: "Follow-up note", value: (c) => c.follow_up_note || "" },
+  { header: "CRM user", value: (c) => c.crm_user || "" },
+  { header: "Warehouse", value: (c) => c.warehouse_name || c.warehouse_no || "" },
+  { header: "Created", value: (c) => fmtDateTime(c.customer_created_at) },
+];
 
 export default function ManageCustomersPage() {
   const [rows, setRows] = useState(null);
@@ -164,6 +182,27 @@ export default function ManageCustomersPage() {
     return () => ctrl.abort();
   }, [load]);
 
+  // The list is server-paginated (25/page); for Export we re-fetch the WHOLE
+  // matching set in one call (same filters, start 0) so the file has every row,
+  // not just the current page. Capped at 20k for safety.
+  const exportAllRows = useCallback(async () => {
+    const d = await fetchCustomers({
+      start: 0,
+      length: Math.min(Math.max(filtered || 0, PAGE_SIZE), 20000),
+      search,
+      customer_type: "active_customer",
+      city: f.city,
+      status: f.status,
+      crmuser_id: f.crmuser,
+      user_id: f.user_id,
+      follow_up: f.follow_up,
+      warehouse_id: f.warehouse_id,
+      is_active_reminder: f.is_active_reminder,
+      search_date: searchDate,
+    });
+    return d.rows;
+  }, [filtered, search, f, searchDate]);
+
   const page = Math.floor(start / PAGE_SIZE) + 1;
   const totalPages = Math.max(1, Math.ceil(filtered / PAGE_SIZE));
   // Date is the default month window, not a user-applied filter, so it doesn't
@@ -188,6 +227,12 @@ export default function ManageCustomersPage() {
           <p className="text-sm text-slate-500">All active customers across SafeStorage, with live filters.</p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportButton
+            filename="customers"
+            columns={CUSTOMER_EXPORT_COLS}
+            rows={rows || []}
+            getRows={exportAllRows}
+          />
           <StatPill label="Total" value={rows ? total.toLocaleString("en-IN") : "—"} tone="slate" />
           <StatPill label="Matching" value={rows ? filtered.toLocaleString("en-IN") : "—"} tone="indigo" />
         </div>
