@@ -75,6 +75,7 @@ import FollowUpModal from "@/components/FollowUpModal";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import QuoteTable from "@/components/QuoteTable";
 import ExportButton from "@/components/ExportButton";
+import StatusBreakdown from "@/components/StatusBreakdown";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const PAGE_SIZE = 50;
@@ -297,10 +298,10 @@ export default function QuotationsPage() {
     return [...new Set(inRange.map((q) => q.city).filter(Boolean))].sort();
   }, [inRange]);
 
-  // Base for the KPI tiles + tab counts: everything after the date/search + city
-  // + status filters, but BEFORE the per-tab test — so every stat and tab badge
-  // reflects whatever filters are active (mirrors how `filtered` applies them).
-  const statBase = useMemo(() => {
+  // Everything after the date/search + city filters, but BEFORE the status
+  // filter — powers the follow-up status breakdown (each status shows its own
+  // count) and is the base the KPI tiles build on.
+  const statusScope = useMemo(() => {
     const q = query.trim().toLowerCase();
     let base;
     if (q) {
@@ -312,9 +313,15 @@ export default function QuotationsPage() {
       base = inRange;
     }
     if (city) base = base.filter((r) => r.city === city);
-    if (status) base = base.filter((r) => normStatus(r.status) === normStatus(status));
     return base;
-  }, [list, searchRows, inRange, query, city, status]);
+  }, [list, searchRows, inRange, query, city]);
+
+  // Base for the KPI tiles + tab counts: statusScope + the status filter, but
+  // BEFORE the per-tab test — so every stat and tab badge reflects the filters.
+  const statBase = useMemo(
+    () => (status ? statusScope.filter((r) => normStatus(r.status) === normStatus(status)) : statusScope),
+    [statusScope, status]
+  );
 
   // Total quoted value (storage + pickup, incl. GST) over the current filters.
   const pipelineValue = useMemo(() => statBase.reduce((s, q) => s + (q.value || 0), 0), [statBase]);
@@ -543,6 +550,10 @@ export default function QuotationsPage() {
           <StatTile label="Warehouse viewed" value={engStats.whViewed} tone="emerald" />
         </div>
       )}
+
+      {/* Follow-up status breakdown (Invalid, RNR, Contacted, …) — reflects the
+          active filters; tap a status to filter the list. */}
+      {list && <StatusBreakdown rows={statusScope} status={status} onSelect={setStatus} />}
 
       {/* Tabs / saved views */}
       <div className="flex gap-1 overflow-x-auto border-b border-slate-200">
