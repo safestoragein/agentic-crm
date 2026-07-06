@@ -26,6 +26,11 @@ import { logEvent, saveLogoutTime } from "@/lib/activity";
 import { fetchNavCounts, fetchLeadsTodayCount } from "@/lib/crm";
 import { useEffect, useState } from "react";
 
+// Nav items whose red count badge is intentionally hidden. Leads / Quotations
+// "today" counts aren't actionable at a glance, so the badge is just noise —
+// the follow-up badges (pending work) are the ones worth surfacing.
+const HIDE_BADGE = new Set(["/leads", "/quotations"]);
+
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/leads", label: "Leads", icon: Users },
@@ -108,7 +113,7 @@ export default function Sidebar() {
             >
               <Icon className={`h-4.5 w-4.5 ${active ? "text-indigo-600" : "text-slate-400"}`} />
               {label}
-              {badges[href] > 0 && (
+              {!HIDE_BADGE.has(href) && badges[href] > 0 && (
                 <span
                   title={`${badges[href]} due today`}
                   className="ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm ring-2 ring-rose-100"
