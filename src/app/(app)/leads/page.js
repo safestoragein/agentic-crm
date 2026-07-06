@@ -145,23 +145,6 @@ export default function LeadsPage() {
     }
   };
 
-  // Status triage counts (like the legacy tiles) — from the loaded set.
-  const stats = useMemo(() => {
-    const s = { total: 0, new: 0, contacted: 0, rnr: 0, followup: 0, converted: 0, invalid: 0, verified: 0 };
-    for (const l of list || []) {
-      s.total++;
-      if (String(l.verified).toLowerCase() === "yes") s.verified++;
-      const f = normStatus(l.follow_up);
-      if (!f) s.new++;
-      else if (f === "contacted") s.contacted++;
-      else if (f === "rnr-lead") s.rnr++;
-      else if (f === "follow-up-needed") s.followup++;
-      else if (f === "converted-to-quote") s.converted++;
-      else if (f === "invalid-lead" || f === "lost-lead") s.invalid++;
-    }
-    return s;
-  }, [list]);
-
   const rows = useMemo(() => {
     // Latest leads first — sort by id descending (newest lead on top) by default.
     const byIdDesc = (a, b) => (Number(b.id) || 0) - (Number(a.id) || 0);
@@ -182,6 +165,25 @@ export default function LeadsPage() {
       )
       .sort(byIdDesc);
   }, [list, query]);
+
+  // Status triage counts — computed from `rows`, i.e. AFTER every filter (the
+  // server-side ones: date / source / storage / status / verified, and the
+  // client-side search box). So the tiles always match exactly what's shown.
+  const stats = useMemo(() => {
+    const s = { total: 0, new: 0, contacted: 0, rnr: 0, followup: 0, converted: 0, invalid: 0, verified: 0 };
+    for (const l of rows) {
+      s.total++;
+      if (String(l.verified).toLowerCase() === "yes") s.verified++;
+      const f = normStatus(l.follow_up);
+      if (!f) s.new++;
+      else if (f === "contacted") s.contacted++;
+      else if (f === "rnr-lead") s.rnr++;
+      else if (f === "follow-up-needed") s.followup++;
+      else if (f === "converted-to-quote") s.converted++;
+      else if (f === "invalid-lead" || f === "lost-lead") s.invalid++;
+    }
+    return s;
+  }, [rows]);
 
 
   return (
