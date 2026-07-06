@@ -70,6 +70,22 @@ const LEAD_EXPORT_COLS = [
   { header: "Created date", value: (l) => l.date },
 ];
 
+// Map a lead's raw follow_up value to a stat-tile bucket. Tolerant of the
+// backend's inconsistent forms — invalid / invalid-lead / Invalid, rnr /
+// rnr-lead / RNR, lost / lost-lead, converted / converted-to-quote,
+// follow-up-needed / no-answer / call-later — so a lead stored as "invalid"
+// counts the same as one stored as "invalid-lead". Returns null when uncounted.
+function leadBucket(v) {
+  const f = normStatus(v);
+  if (!f) return "new";
+  if (f.includes("invalid") || f.includes("lost")) return "invalid";
+  if (f.includes("rnr")) return "rnr";
+  if (f.includes("convert")) return "converted";
+  if (f === "contacted" || f === "qualified") return "contacted";
+  if (f.includes("follow-up") || f === "no-answer" || f === "call-later" || f === "sent-message") return "followup";
+  return null;
+}
+
 export default function LeadsPage() {
   const [list, setList] = useState(null);
   const [error, setError] = useState("");
@@ -94,7 +110,10 @@ export default function LeadsPage() {
       const s = getSession();
       if (!s) return Promise.resolve();
       setLoading(true);
-      return fetchHouseholdLeads({ userId: s.user_id, storageType, followUp, source, verified, from, to, limit: 500, signal })
+      // NOTE: follow_up is filtered CLIENT-side (see `rows`), not sent to the
+      // backend — the stored values are inconsistent (invalid vs invalid-lead,
+      // rnr vs rnr-lead), so an exact server match would miss variants.
+      return fetchHouseholdLeads({ userId: s.user_id, storageType, source, verified, from, to, limit: 500, signal })
         .then((d) => {
           setList(d);
           setError("");
@@ -104,7 +123,7 @@ export default function LeadsPage() {
         })
         .finally(() => setLoading(false));
     },
-    [storageType, followUp, source, verified, from, to]
+    [storageType, source, verified, from, to]
   );
 
   useEffect(() => {
@@ -148,10 +167,18 @@ export default function LeadsPage() {
   const rows = useMemo(() => {
     // Latest leads first — sort by id descending (newest lead on top) by default.
     const byIdDesc = (a, b) => (Number(b.id) || 0) - (Number(a.id) || 0);
+    let base = list || [];
+    // Follow-up status filter — client-side & bucket-based so it matches the messy
+    // stored variants (invalid vs invalid-lead, rnr vs rnr-lead, …) that an exact
+    // server-side match would miss.
+    if (followUp) {
+      const want = leadBucket(followUp);
+      base = base.filter((l) => leadBucket(l.follow_up) === want);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return [...(list || [])].sort(byIdDesc);
+    if (!q) return [...base].sort(byIdDesc);
     const digits = q.replace(/\D/g, "");
-    return (list || [])
+    return base
       .filter(
         (l) =>
           (l.customer_name || "").toLowerCase().includes(q) ||
@@ -164,7 +191,7 @@ export default function LeadsPage() {
           (!!digits && String(l.customer_mobile_no || "").replace(/\D/g, "").includes(digits))
       )
       .sort(byIdDesc);
-  }, [list, query]);
+  }, [list, followUp, query]);
 
   // Status triage counts — computed from `rows`, i.e. AFTER every filter (the
   // server-side ones: date / source / storage / status / verified, and the
@@ -174,13 +201,8 @@ export default function LeadsPage() {
     for (const l of rows) {
       s.total++;
       if (String(l.verified).toLowerCase() === "yes") s.verified++;
-      const f = normStatus(l.follow_up);
-      if (!f) s.new++;
-      else if (f === "contacted") s.contacted++;
-      else if (f === "rnr-lead") s.rnr++;
-      else if (f === "follow-up-needed") s.followup++;
-      else if (f === "converted-to-quote") s.converted++;
-      else if (f === "invalid-lead" || f === "lost-lead") s.invalid++;
+      const b = leadBucket(l.follow_up);
+      if (b) s[b]++;
     }
     return s;
   }, [rows]);
