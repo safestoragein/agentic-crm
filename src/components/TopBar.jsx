@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { LogOut } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/adminAuth";
 import { logEvent, saveLogoutTime } from "@/lib/activity";
+import { clearApiCache } from "@/lib/api";
 import AlertCenter from "@/components/AlertCenter";
 
 // Page title shown in the top bar (moved out of each page for a cleaner look).
@@ -33,10 +34,19 @@ export default function TopBar() {
   const router = useRouter();
   const pathname = usePathname();
   const [session, setSession] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     setSession(getSession());
   }, []);
+
+  // Global refresh: drop the client read-cache so every list refetches, then
+  // reload the page. Works uniformly on every screen (no per-page wiring).
+  const refresh = () => {
+    setRefreshing(true);
+    clearApiCache();
+    window.location.reload();
+  };
 
   const title = TITLES[pathname] || "";
   const fname = session?.user_fname || "User";
@@ -50,6 +60,16 @@ export default function TopBar() {
         {title && <h1 className="truncate text-lg font-bold tracking-tight text-slate-900">{title}</h1>}
 
         <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={refresh}
+            disabled={refreshing}
+            title="Refresh — reload this page with fresh data"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </button>
+
           <span className="hidden items-center gap-1.5 text-sm font-medium text-emerald-600 sm:flex">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             Available
