@@ -1,9 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pencil, Save, X, Loader2 } from "lucide-react";
 import { updateCustomerDetails } from "@/lib/customer";
+import { fetchCustomerFilters } from "@/lib/customers";
 import PlacesAutocompleteInput from "@/components/PlacesAutocompleteInput";
+
+// City → customer_unique_id prefix, mirroring the legacy customer_details page.
+// Anything not listed falls back to the uppercased first letter of the slug.
+const CITY_PREFIX = {
+  bangalore: "BH", hyderabad: "HH", chennai: "CH", coimbatore: "COH",
+  pune: "PH", mumbai: "MH", delhi: "DH", kolkata: "KH", noida: "NH", jaipur: "JH",
+};
+function cityPrefix(slug) {
+  if (!slug) return "";
+  return CITY_PREFIX[slug] || slug.charAt(0).toUpperCase();
+}
+// Swap the leading letter-prefix of a customer_unique_id for the city's prefix,
+// keeping the numeric part. e.g. reprefix("BH45427", "pune") -> "PH45427".
+function reprefixUid(uid, slug) {
+  const prefix = cityPrefix(slug);
+  if (!prefix) return uid || "";
+  return prefix + String(uid || "").replace(/^[A-Za-z]+/, "");
+}
 
 // Select options keyed by column. Plain arrays render value=label; objects
 // allow a distinct stored value vs. shown label.
@@ -27,7 +46,7 @@ const PROFILE = [
   { key: "alternate_customer_email", label: "Alt. email" },
   { key: "customer_contact1", label: "Phone" },
   { key: "customer_contact2", label: "Alt. phone" },
-  { key: "customer_local_city", label: "Local city" },
+  { key: "customer_local_city", label: "Local city", type: "city" },
   { key: "payment_type", label: "Payment type", type: "select" },
   { key: "payment_plan", label: "Payment plan", type: "select" },
   { key: "referral_code", label: "Referral code" },
@@ -61,6 +80,16 @@ export default function CustomerDetailsForm({ customer, onSaved }) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({});
+  const [cities, setCities] = useState([]); // full ss_city list for the dropdown
+
+  // Load the full city list once (same source as the old site's dropdown).
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetchCustomerFilters({ signal: ctrl.signal })
+      .then((d) => setCities(d.cities || []))
+      .catch(() => {});
+    return () => ctrl.abort();
+  }, []);
 
   const startEdit = () => {
     const init = {};
@@ -70,11 +99,20 @@ export default function CustomerDetailsForm({ customer, onSaved }) {
       else if (f.type === "checkbox") v = isTrue(v) ? "1" : "0";
       init[f.key] = v == null ? "" : String(v);
     });
+    // Track the unique id so a city change can re-prefix it (and it gets saved).
+    init.customer_unique_id = customer.customer_unique_id == null ? "" : String(customer.customer_unique_id);
     setForm(init);
     setEditing(true);
   };
 
-  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const set = (k, v) =>
+    setForm((p) => {
+      const next = { ...p, [k]: v };
+      // Changing the city re-prefixes the customer_unique_id (BH45427 → PH45427),
+      // matching the legacy behaviour.
+      if (k === "customer_local_city") next.customer_unique_id = reprefixUid(p.customer_unique_id, v);
+      return next;
+    });
 
   const save = async () => {
     setSaving(true);
@@ -121,21 +159,28 @@ export default function CustomerDetailsForm({ customer, onSaved }) {
       </div>
 
       <div className="space-y-6 p-5">
-        <Group title="Profile" fields={PROFILE} customer={customer} editing={editing} form={form} set={set} />
-        <Group title="Address" fields={ADDRESS} customer={customer} editing={editing} form={form} set={set} />
+        {editing && (
+          <div className="flex items-center gap-2 rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2 text-sm">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Customer ID</span>
+            <span className="font-bold tabular-nums text-indigo-700">{form.customer_unique_id || "—"}</span>
+            <span className="text-[11px] text-slate-400">· updates its prefix with the city</span>
+          </div>
+        )}
+        <Group title="Profile" fields={PROFILE} customer={customer} editing={editing} form={form} set={set} cities={cities} />
+        <Group title="Address" fields={ADDRESS} customer={customer} editing={editing} form={form} set={set} cities={cities} />
       </div>
     </div>
   );
 }
 
-function Group({ title, fields, customer, editing, form, set }) {
+function Group({ title, fields, customer, editing, form, set, cities }) {
   return (
     <div>
       <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">{title}</h3>
       <div className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
         {fields.map((f) =>
           editing ? (
-            <EditCell key={f.key} field={f} value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
+            <EditCell key={f.key} field={f} value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} cities={cities} />
           ) : (
             <ViewCell key={f.key} field={f} value={customer[f.key]} />
           )
@@ -159,15 +204,30 @@ function ViewCell({ field, value }) {
 }
 
 /* ----------------------------- edit ----------------------------- */
-function EditCell({ field, value, onChange }) {
+function EditCell({ field, value, onChange, cities }) {
   const full = field.type === "textarea" || field.type === "address";
   const inputCls =
     "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20";
 
+  // Full city dropdown (all active cities). Keep the current value selectable
+  // even if it isn't in the fetched list (e.g. an unusual legacy slug).
+  const cityOpts = (cities || []).map((c) => ({ value: c.city_slug, label: c.city_name || c.city_slug }));
+  const hasCurrent = !value || cityOpts.some((o) => String(o.value) === String(value));
+
   return (
     <div className={full ? "sm:col-span-2 lg:col-span-3" : ""}>
       <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-400">{field.label}</label>
-      {field.type === "address" ? (
+      {field.type === "city" ? (
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+          <option value="">Select city</option>
+          {!hasCurrent && <option value={value}>{prettyWords(value)}</option>}
+          {cityOpts.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : field.type === "address" ? (
         <PlacesAutocompleteInput
           value={value}
           onChange={onChange}
