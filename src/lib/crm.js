@@ -416,6 +416,22 @@ export async function fetchQuotations(userId, { signal } = {}) {
   return toList(raw).map((q) => mapQuotationRow(q, today));
 }
 
+// Server-side search across the rep's WHOLE quotation history (all dates), not
+// just the recent window fetchQuotations returns. Lets the quotations page find
+// old customers (e.g. a 2025 lead) by name / email / phone / id. Backed by the
+// `q` param on crm_team_quotations_data, which drops the recent-only date window.
+export async function fetchQuotationsSearch(userId, q, { signal } = {}) {
+  const term = String(q || "").trim();
+  if (!term) return [];
+  const raw = await apiGetForm(
+    "crm_team_quotations_data",
+    { relationship_manager_id: userId, q: term },
+    { signal }
+  );
+  const today = ymd();
+  return toList(raw).map((r) => mapQuotationRow(r, today));
+}
+
 // Follow-up cohort for the /follow-ups page — same source the dashboard's
 // "Follow-ups due today" uses (crm_team_quotations_data_follow_ups: per
 // customer, is_customer='0', keyed on follow_up_date), so the page's "Due

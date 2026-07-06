@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { ShieldAlert, ShieldCheck, ArrowUpRight, ArrowLeftRight, Zap, Percent, Send, MailOpen, Warehouse, Check, AlertTriangle, ClipboardList, CalendarClock, StickyNote, UserRound } from "lucide-react";
 import { getSession } from "@/lib/auth";
-import { fetchQuotations, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES, normStatus } from "@/lib/crm";
+import { fetchQuotations, fetchQuotationsSearch, fetchQuoteEmailStatus, emailStatusInfo, mergedEmailStatus, fetchOtpVerifiedIds, fetchBookingSignals, bookingScore, customerLifecycle, shareWarehouseKit, fetchWhatsappStatus, minutesAgo, rangeForPreset, dateInRange, ymd, FOLLOWUP_STATUSES, normStatus } from "@/lib/crm";
 
 const SLA_MINUTES = 15; // first-response SLA: contact a new lead within 15 min
 // Only raise first-response SLA alerts for recent leads (~4 months). Older
@@ -93,6 +93,7 @@ const TABS = [
 
 export default function QuotationsPage() {
   const [list, setList] = useState(null);
+  const [searchRows, setSearchRows] = useState([]); // server-side search hits (all dates)
   const [error, setError] = useState("");
   const [tab, setTab] = useState("all");
   const [query, setQuery] = useState("");
@@ -190,30 +191,63 @@ export default function QuotationsPage() {
     return () => ctrl.abort();
   }, [loadQuotes]);
 
+  // Server-side search across ALL dates: the default list only carries the recent
+  // window, so an old customer (e.g. a 2025 lead) isn't in it. When the rep types
+  // a term, ask the backend for matches across their whole history and merge them
+  // in, so the client-side filter can surface them. Debounced; needs 2+ chars.
+  useEffect(() => {
+    const term = query.trim();
+    if (term.length < 2) {
+      setSearchRows([]);
+      return;
+    }
+    const s = getSession();
+    if (!s) return;
+    const ctrl = new AbortController();
+    const t = setTimeout(() => {
+      fetchQuotationsSearch(s.user_id, term, { signal: ctrl.signal })
+        .then(setSearchRows)
+        .catch(() => {});
+    }, 350);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [query]);
+
   // Quotations created within the selected date window (default: today).
   const inRange = useMemo(() => {
     if (!list) return [];
     return list.filter((q) => dateInRange(q.customerDate || q.createdAt, range.from, range.to));
   }, [list, range]);
 
+  // Rows the per-quote maps below must cover: the recent list PLUS any server
+  // search hits (old customers not in the list), deduped by id — so a searched
+  // old customer still gets a score/lifecycle and renders without gaps.
+  const mapScope = useMemo(() => {
+    if (!searchRows.length) return list || [];
+    const seen = new Set((list || []).map((r) => r.id));
+    return [...(list || []), ...searchRows.filter((r) => !seen.has(r.id))];
+  }, [list, searchRows]);
+
   // Escalation evaluation per quote (keyed by customer_id).
   const escMap = useMemo(() => {
     const m = new Map();
-    (list || []).forEach((q) => m.set(q.id, evaluateEscalation(q)));
+    mapScope.forEach((q) => m.set(q.id, evaluateEscalation(q)));
     return m;
-  }, [list]);
+  }, [mapScope]);
 
   // Win-probability score per quote (uses the escalation result as a signal).
   const scoreMap = useMemo(() => {
     const m = new Map();
-    (list || []).forEach((q) => m.set(q.id, scoreQuote(q, escMap.get(q.id))));
+    mapScope.forEach((q) => m.set(q.id, scoreQuote(q, escMap.get(q.id))));
     return m;
-  }, [list, escMap]);
+  }, [mapScope, escMap]);
 
   // Booking-probability score per quote (OTP + email engagement + call signals).
   const bookingMap = useMemo(() => {
     const m = new Map();
-    (list || []).forEach((q) =>
+    mapScope.forEach((q) =>
       m.set(
         q.id,
         bookingScore(q, {
@@ -225,12 +259,12 @@ export default function QuotationsPage() {
       )
     );
     return m;
-  }, [list, otpIds, bookingSignals, emailStatus, waStatus]);
+  }, [mapScope, otpIds, bookingSignals, emailStatus, waStatus]);
 
   // Lifecycle (funnel milestones) per quote — powers the per-row mini stepper.
   const lifecycleMap = useMemo(() => {
     const m = new Map();
-    (list || []).forEach((q) =>
+    mapScope.forEach((q) =>
       m.set(
         q.id,
         customerLifecycle(q, {
@@ -241,7 +275,7 @@ export default function QuotationsPage() {
       )
     );
     return m;
-  }, [list, otpIds, bookingSignals, emailStatus]);
+  }, [mapScope, otpIds, bookingSignals, emailStatus]);
 
   const cities = useMemo(() => {
     return [...new Set(inRange.map((q) => q.city).filter(Boolean))].sort();
@@ -348,15 +382,22 @@ export default function QuotationsPage() {
     // "All dates" with no search = search-only mode: don't build/sort the whole
     // history (that's what would make the tab slow). Wait for the user to type.
     if (range.label === "All dates" && !q) return [];
-    // When searching, span ALL tabs AND ALL DATES — match across the rep's
-    // whole quotation history (not just the selected date range), so a customer
-    // who quoted long ago is still found by name/phone/ID without having to
-    // clear the date filter first. Otherwise filter by the active tab in-range.
-    let rows = q
-      ? list.filter((r) => matchesQuery(r, q))
-      : tabDef.exceptions
-        ? inRange.filter((r) => escMap.get(r.id)?.triggers.length)
-        : inRange.filter(tabDef.test);
+    // When searching, span ALL tabs AND ALL DATES — match across the rep's whole
+    // quotation history. The recent-window `list` only holds the last ~month, so
+    // we also fold in `searchRows` (server-side hits across all dates) and dedupe
+    // by customer id, letting an old customer surface even though the default list
+    // never carried them. Otherwise filter by the active tab in-range.
+    let rows;
+    if (q) {
+      const byId = new Map();
+      for (const r of list) if (matchesQuery(r, q)) byId.set(r.id, r);
+      for (const r of searchRows) if (matchesQuery(r, q)) byId.set(r.id, byId.get(r.id) || r);
+      rows = [...byId.values()];
+    } else if (tabDef.exceptions) {
+      rows = inRange.filter((r) => escMap.get(r.id)?.triggers.length);
+    } else {
+      rows = inRange.filter(tabDef.test);
+    }
     if (city) rows = rows.filter((r) => r.city === city);
     if (status) rows = rows.filter((r) => normStatus(r.status) === normStatus(status));
     // "New" tab: same in-range set, but always newest-created first (overrides sort).
@@ -392,7 +433,7 @@ export default function QuotationsPage() {
       );
     }
     return [...rows].sort(sorters[sort]);
-  }, [list, inRange, escMap, scoreMap, bookingMap, otpIds, emailStatus, tab, query, city, status, sort, range]);
+  }, [list, searchRows, inRange, escMap, scoreMap, bookingMap, otpIds, emailStatus, tab, query, city, status, sort, range]);
 
   // reset page when filters change
   useEffect(() => setPage(1), [tab, query, city, sort, range]);
