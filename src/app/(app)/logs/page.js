@@ -325,7 +325,7 @@ export default function ProductivityPage() {
               <>Login / logout, time worked, idle time and follow-up rhythm for every rep.</>
             ) : (
               <>
-                {repName ? <span className="font-semibold text-slate-700">{repName}</span> : "—"} · login &amp; idle time,
+                {repName ? <span className="font-semibold text-slate-700">{repName}</span> : "—"} · login{admin ? " & idle" : ""} time,
                 follow-up rhythm and the full action timeline for the day.
               </>
             )}
@@ -388,7 +388,7 @@ export default function ProductivityPage() {
           onPick={(id) => setViewUserId(String(id))}
         />
       ) : (
-        <SingleRep d={d} logs={logs} quotes={quotes} />
+        <SingleRep d={d} logs={logs} quotes={quotes} showIdle={admin} />
       )}
     </div>
   );
@@ -515,7 +515,7 @@ function Td({ children, className = "" }) {
 }
 
 /* ============================ single-rep detail ============================ */
-function SingleRep({ d, logs, quotes }) {
+function SingleRep({ d, logs, quotes, showIdle }) {
   return (
     <>
       {/* timing KPIs */}
@@ -534,28 +534,41 @@ function SingleRep({ d, logs, quotes }) {
           icon={Timer}
           tone="sky"
         />
-        <Kpi
-          label="Idle / not working"
-          value={fmtMins(d.s.idle_min || 0)}
-          sub={d.s.longest_idle_min ? `longest gap ${fmtMins(d.s.longest_idle_min)}` : "no long gaps"}
-          icon={Hourglass}
-          tone={(d.s.idle_min || 0) >= 60 ? "rose" : (d.s.idle_min || 0) > 0 ? "amber" : "emerald"}
-        />
-        <Kpi
-          label={d.isToday ? "Idle right now" : "Ramp-up to 1st action"}
-          value={d.isToday ? (d.idleNow != null ? fmtMins(d.idleNow) : "—") : d.rampMins != null ? fmtMins(d.rampMins) : "—"}
-          sub={
-            d.isToday
-              ? d.lastActionAt
-                ? `last action ${fmtTime(d.lastActionAt)}`
-                : "no action yet"
-              : d.loginAt
-                ? "login → first action"
-                : "—"
-          }
-          icon={AlertTriangle}
-          tone={d.isToday && d.idleNow != null && d.idleNow > IDLE_GAP ? "rose" : "slate"}
-        />
+        {/* Idle time is admin-only — reps never see idle / "not working" metrics. */}
+        {showIdle && (
+          <Kpi
+            label="Idle / not working"
+            value={fmtMins(d.s.idle_min || 0)}
+            sub={d.s.longest_idle_min ? `longest gap ${fmtMins(d.s.longest_idle_min)}` : "no long gaps"}
+            icon={Hourglass}
+            tone={(d.s.idle_min || 0) >= 60 ? "rose" : (d.s.idle_min || 0) > 0 ? "amber" : "emerald"}
+          />
+        )}
+        {showIdle ? (
+          <Kpi
+            label={d.isToday ? "Idle right now" : "Ramp-up to 1st action"}
+            value={d.isToday ? (d.idleNow != null ? fmtMins(d.idleNow) : "—") : d.rampMins != null ? fmtMins(d.rampMins) : "—"}
+            sub={
+              d.isToday
+                ? d.lastActionAt
+                  ? `last action ${fmtTime(d.lastActionAt)}`
+                  : "no action yet"
+                : d.loginAt
+                  ? "login → first action"
+                  : "—"
+            }
+            icon={AlertTriangle}
+            tone={d.isToday && d.idleNow != null && d.idleNow > IDLE_GAP ? "rose" : "slate"}
+          />
+        ) : (
+          <Kpi
+            label="Ramp-up to 1st action"
+            value={d.rampMins != null ? fmtMins(d.rampMins) : "—"}
+            sub={d.loginAt ? "login → first action" : "—"}
+            icon={Gauge}
+            tone="slate"
+          />
+        )}
       </div>
 
       {/* follow-up + volume KPIs */}
@@ -586,7 +599,7 @@ function SingleRep({ d, logs, quotes }) {
           <div className="border-b border-slate-100 px-4 py-3">
             <h2 className="text-sm font-bold text-slate-800">Action timeline</h2>
             <p className="text-[11px] text-slate-400">
-              Every recorded action in order. Gaps over {IDLE_GAP} min are flagged as idle (no activity on the site).
+              Every recorded action in order.{showIdle ? ` Gaps over ${IDLE_GAP} min are flagged as idle (no activity on the site).` : ""}
             </p>
           </div>
           <div className="max-h-[28rem] overflow-y-auto px-2 py-2">
@@ -594,7 +607,7 @@ function SingleRep({ d, logs, quotes }) {
             {logs && d.timeline.length === 0 && (
               <div className="py-14 text-center text-sm text-slate-400">No activity recorded for this day.</div>
             )}
-            {logs && d.timeline.map((r, i) => <TimelineRow key={`${r.created_at}-${i}`} r={r} />)}
+            {logs && d.timeline.map((r, i) => <TimelineRow key={`${r.created_at}-${i}`} r={r} showIdle={showIdle} />)}
           </div>
         </div>
 
@@ -621,16 +634,18 @@ function SingleRep({ d, logs, quotes }) {
       </div>
 
       <p className="mt-3 text-[11px] text-slate-400">
-        “Idle” = total time in gaps longer than {IDLE_GAP} min between actions (calls, WhatsApp, customer opens, emails — not page
-        views). “Follow-up gap” = minutes between one follow-up call and the next. “Time to 1st follow-up” = minutes from lead
-        creation to the first follow-up logged that day.
+        {showIdle && (
+          <>“Idle” = total time in gaps longer than {IDLE_GAP} min between actions (calls, WhatsApp, customer opens, emails — not page views). </>
+        )}
+        “Follow-up gap” = minutes between one follow-up call and the next. “Time to 1st follow-up” = minutes from lead creation to the
+        first follow-up logged that day.
       </p>
     </>
   );
 }
 
 /* ----------------------------- timeline row ----------------------------- */
-function TimelineRow({ r }) {
+function TimelineRow({ r, showIdle }) {
   const meta = EVENT_META[r.event_type] || { label: r.event_type, icon: Activity, tone: "slate" };
   const Icon = meta.icon;
   const tones = {
@@ -643,7 +658,7 @@ function TimelineRow({ r }) {
   };
   return (
     <>
-      {r.idle && (
+      {showIdle && r.idle && (
         <div className="mx-2 my-1 flex items-center gap-2 text-[11px] font-semibold text-rose-500">
           <span className="h-px flex-1 bg-rose-100" />
           <Clock className="h-3 w-3" /> idle {fmtMins(r.gap)}
