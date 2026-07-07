@@ -83,29 +83,23 @@ export default function QuotationDetailPage() {
     setDirty((d) => ({ ...d, transport: true }));
   };
 
-  // Live transport recalculation — matches the pricing engine (get_data_for_step3)
-  // and therefore the customer email / booking link EXACTLY:
-  //   (vehicle + packing + labour + lift + extra km + pallet surcharge) × multi-factor
-  //   − coupon → total; token 1000; due = total − token − extra token.
-  // The pallet surcharge (₹2000/3600/4800 by pallet count) is folded into transport
-  // by the engine and stored in pickup_charges, so it MUST be included here or this
-  // page under-shows transport vs the email.
+  // Live transport recalculation — port of do_transport_calculation.
+  // (vehicle + packing + labour + lift + extra km) × multi-factor − coupon → total;
+  // token 1000; due = total − token − extra token. A new coupon overrides existing.
   const transportCalc = useMemo(() => {
-    const lineItems =
+    const base =
       num(form?.transport_cost) +
       num(form?.item_packing_charges) +
       num(form?.labour_cost) +
       num(form?.lift_cost) +
       num(form?.extra_km_charges);
-    const surcharge = palletSurcharge(q?.total_pallet);
-    const base = lineItems + surcharge;
     const mf = num(q?.transport_multi_factor) || 1;
     const withMf = base * mf;
     const activeCoupon = form?.transport_coupon || q?.transport_coupon || "";
     const total = Math.max(Math.ceil(withMf - couponAmount(activeCoupon, withMf)), 0);
     const token = 1000;
     const due = Math.max(Math.ceil(total - token - num(form?.transport_token_amtextra)), 0);
-    return { base, lineItems, surcharge, mf, total, token, due };
+    return { base, mf, total, token, due };
   }, [form, q]);
 
   // Live storage recalculation — port of do_storage_calculation.
@@ -125,13 +119,16 @@ export default function QuotationDetailPage() {
     return { base, mf, incGst: Math.round(gross), total, month3, month6, month12 };
   }, [form, q]);
 
-  // Display values ALWAYS come from the recompute (editing a charge updates `form`,
-  // which flows through *Calc automatically).
-  //   • Transport: line items + pallet surcharge, × multi-factor, − coupon. This now
-  //     matches the pricing engine and the customer email/booking exactly (the pallet
-  //     surcharge is included — previously it was omitted, making this page under-show
-  //     transport vs the email).
-  //   • Storage: coupon-applied GST-inclusive total, months derived from it.
+  // Display values ALWAYS come from the recompute, because the old dashboard
+  // recomputes both sections on load (do_storage_calculation / do_transport_
+  // calculation) and shows those figures — NOT the stored charge columns.
+  //   • Transport: the stored pickup_charges / total_pickup_charges_with_gst fold
+  //     in the pallet surcharge (e.g. 4311), but the old dashboard shows the
+  //     recompute (pieces × multi-factor − coupon = 3311; Due = 3311 − ₹1000 token
+  //     = 2311). Reading a stored field made the total ~₹1000 high.
+  //   • Storage: coupon-applied GST-inclusive total (e.g. 2903), months derived
+  //     from it. `dirty` no longer affects the displayed figures — editing a
+  //     charge updates `form`, which flows through *Calc automatically.
   const transportTotal = transportCalc.total;
   const transportDue = transportCalc.due;
   const storageTotal = storageCalc.total;
@@ -327,9 +324,6 @@ export default function QuotationDetailPage() {
                 <EditRow label="Labor cost" value={form.labour_cost} onChange={(v) => set("labour_cost", v)} money />
                 <EditRow label="Lift charges" value={form.lift_cost} onChange={(v) => set("lift_cost", v)} money />
                 <EditRow label="Extra km charges" value={form.extra_km_charges} onChange={(v) => set("extra_km_charges", v)} money />
-                {transportCalc.surcharge > 0 && (
-                  <EditRow label={`Pallet handling charge (${q.total_pallet || "—"} pallets)`} value={transportCalc.surcharge} readOnly money />
-                )}
                 <div className="my-2 border-t border-slate-100" />
                 <EditRow
                   label={`Total transport charges${q.transport_multi_factor ? ` (${q.transport_multi_factor}% multi-factor)` : ""}`}
@@ -541,16 +535,6 @@ function SelectRow({ label, value, onChange, options, hint }) {
 function num(v) {
   const n = Number(v);
   return isNaN(n) ? 0 : n;
-}
-// Pallet handling surcharge the pricing engine folds into transport (and thus into
-// the stored pickup_charges + the customer email). Bands mirror get_data_for_step3:
-// ≤3 pallets → ₹2000, >3 & <6 → ₹3600, ≥6 → ₹4800.
-function palletSurcharge(pallets) {
-  const p = num(pallets);
-  if (p <= 0) return 0; // no pallets (e.g. empty/edge) → no surcharge
-  if (p <= 3) return 2000;
-  if (p < 6) return 3600;
-  return 4800;
 }
 // Coupon "safestorage-{flat|percent}-{amount}" → discount value off `base`.
 function couponAmount(code, base) {
