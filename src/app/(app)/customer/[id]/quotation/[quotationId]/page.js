@@ -83,26 +83,23 @@ export default function QuotationDetailPage() {
     setDirty((d) => ({ ...d, transport: true }));
   };
 
-  // Transport recompute (used only when the rep edits a charge/coupon) — matches
-  // the customer controller: gross = (vehicle + packing + labour + lift + extra km
-  // + pallet surcharge) × multi-factor, then − coupon. The pallet surcharge is part
-  // of the engine's transport total (get_data_for_step3), so it's included here so a
-  // re-quote lands on the same number the engine/email produce.
+  // Live transport recalculation — port of do_transport_calculation.
+  // (vehicle + packing + labour + lift + extra km) × multi-factor − coupon → total;
+  // token 1000; due = total − token − extra token. A new coupon overrides existing.
   const transportCalc = useMemo(() => {
-    const lineItems =
+    const base =
       num(form?.transport_cost) +
       num(form?.item_packing_charges) +
       num(form?.labour_cost) +
       num(form?.lift_cost) +
       num(form?.extra_km_charges);
-    const base = lineItems + palletSurcharge(q?.total_pallet);
     const mf = num(q?.transport_multi_factor) || 1;
     const withMf = base * mf;
     const activeCoupon = form?.transport_coupon || q?.transport_coupon || "";
     const total = Math.max(Math.ceil(withMf - couponAmount(activeCoupon, withMf)), 0);
     const token = 1000;
     const due = Math.max(Math.ceil(total - token - num(form?.transport_token_amtextra)), 0);
-    return { base, lineItems, mf, total, token, due };
+    return { base, mf, total, token, due };
   }, [form, q]);
 
   // Live storage recalculation — port of do_storage_calculation.
@@ -122,15 +119,18 @@ export default function QuotationDetailPage() {
     return { base, mf, incGst: Math.round(gross), total, month3, month6, month12 };
   }, [form, q]);
 
-  // Display values — faithful to customer_detailsnew:
-  //   • Transport: show the STORED value (total_pickup_charges_with_gst / due) on
-  //     load — customer_detailsnew renders these stored columns and does NOT
-  //     recompute transport on load. Only once the rep edits a transport charge or
-  //     coupon (dirty.transport) do we recompute (do_transport_calculation).
-  //   • Storage: customer_detailsnew recomputes storage on load
-  //     (do_storage_calculation), so we always show the recompute.
-  const transportTotal = dirty.transport ? transportCalc.total : (num(q?.total_pickup_charges_with_gst) || transportCalc.total);
-  const transportDue = dirty.transport ? transportCalc.due : (num(q?.transport_due_charges) || transportCalc.due);
+  // Display values ALWAYS come from the recompute, because the old dashboard
+  // recomputes both sections on load (do_storage_calculation / do_transport_
+  // calculation) and shows those figures — NOT the stored charge columns.
+  //   • Transport: the stored pickup_charges / total_pickup_charges_with_gst fold
+  //     in the pallet surcharge (e.g. 4311), but the old dashboard shows the
+  //     recompute (pieces × multi-factor − coupon = 3311; Due = 3311 − ₹1000 token
+  //     = 2311). Reading a stored field made the total ~₹1000 high.
+  //   • Storage: coupon-applied GST-inclusive total (e.g. 2903), months derived
+  //     from it. `dirty` no longer affects the displayed figures — editing a
+  //     charge updates `form`, which flows through *Calc automatically.
+  const transportTotal = transportCalc.total;
+  const transportDue = transportCalc.due;
   const storageTotal = storageCalc.total;
   const storageMonth3 = storageCalc.month3;
   const storageMonth6 = storageCalc.month6;
@@ -535,16 +535,6 @@ function SelectRow({ label, value, onChange, options, hint }) {
 function num(v) {
   const n = Number(v);
   return isNaN(n) ? 0 : n;
-}
-// Pallet handling surcharge the pricing engine (get_data_for_step3) folds into the
-// transport total — bands: ≤3 pallets → ₹2000, >3 & <6 → ₹3600, ≥6 → ₹4800. Used
-// only in the recompute-on-edit path so a re-quote matches the engine/email.
-function palletSurcharge(pallets) {
-  const p = num(pallets);
-  if (p <= 0) return 0;
-  if (p <= 3) return 2000;
-  if (p < 6) return 3600;
-  return 4800;
 }
 // Coupon "safestorage-{flat|percent}-{amount}" → discount value off `base`.
 function couponAmount(code, base) {
