@@ -98,7 +98,16 @@ export function rangeForPreset(preset) {
     }
     case "month":
     default:
-      return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: today, label: "This month" };
+      // Full calendar month (1st → last day), NOT month-to-date. This matters for
+      // date fields that can be in the future — e.g. a follow-up's scheduled
+      // follow_up_date. Capping at "today" hid the rest of this month's follow-ups
+      // (and undercounted RNR etc.). Creation-date pages are unaffected (nothing is
+      // created in the future), so this is safe everywhere it's used.
+      return {
+        from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)),
+        to: ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0)), // last day of this month
+        label: "This month",
+      };
   }
 }
 
