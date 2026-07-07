@@ -125,11 +125,11 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
             )}
           </div>
 
-          {/* Line 2 — location */}
+          {/* Line 2 — location (full pickup address, not truncated) */}
           {(q.city || q.pickupAddress) && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-sm text-slate-500">
-              <MapPin className="h-4 w-4 shrink-0 text-indigo-400" />
-              <span className="min-w-0 truncate" title={[q.city, q.pickupAddress].filter(Boolean).join(" — ")}>
+            <div className="mt-1.5 flex items-start gap-1.5 text-sm text-slate-500">
+              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+              <span className="min-w-0 whitespace-pre-line break-words">
                 {q.city && <span className="font-semibold capitalize text-slate-700">{q.city}</span>}
                 {q.city && q.pickupAddress && <span className="text-slate-400"> — </span>}
                 {q.pickupAddress && <span className="font-medium text-slate-900">{q.pickupAddress}</span>}

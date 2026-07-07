@@ -102,6 +102,7 @@ const FOLLOWUP_EXPORT_COLS = [
   { header: "Phone", value: (r) => r.contact || "" },
   { header: "Email", value: (r) => r.email || "" },
   { header: "City", value: (r) => r.city || "" },
+  { header: "Pickup address", value: (r) => r.pickupAddress || "" },
   { header: "Stage", value: (r) => r.stage || "" },
   { header: "Status", value: (r) => prettyWords(r.status) || "" },
   {
@@ -864,6 +865,7 @@ function bucketCohort(rows) {
       contact,
       email: r.email || "",
       city: r.city || "",
+      pickupAddress: r.pickupAddress || "",
       stage: r.stage || "",
       status: r.status || "",
       note: r.note || "",

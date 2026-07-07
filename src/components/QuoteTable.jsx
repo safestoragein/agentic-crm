@@ -96,6 +96,7 @@ export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp 
             <th className="px-4 py-3">Contact</th>
             <th className="px-4 py-3">Email</th>
             <th className="px-4 py-3">City</th>
+            <th className="px-4 py-3">Pickup address</th>
             <th className="px-4 py-3 text-right">Value</th>
             <th className="px-4 py-3 text-center">Booking</th>
             <th className="px-4 py-3">Status</th>
@@ -127,6 +128,15 @@ export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp 
                   )}
                 </td>
                 <td className="px-4 py-3 capitalize text-slate-600">{q.city || <span className="text-slate-300">—</span>}</td>
+                <td className="px-4 py-3 align-top">
+                  {q.pickupAddress ? (
+                    <div className="min-w-[220px] max-w-[360px] whitespace-pre-line break-words text-xs font-medium leading-snug text-slate-700">
+                      {q.pickupAddress}
+                    </div>
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
+                </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-800">{fmtMoney(q.value)}</td>
                 <td className="px-4 py-3 text-center"><BookingPill booking={booking} /></td>
                 <td className="px-4 py-3"><span className={`inline-block whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${st.cls}`}>{st.label}</span></td>
