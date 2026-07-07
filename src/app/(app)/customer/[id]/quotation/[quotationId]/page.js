@@ -119,18 +119,18 @@ export default function QuotationDetailPage() {
     return { base, mf, incGst: Math.round(gross), total, month3, month6, month12 };
   }, [form, q]);
 
-  // Display values ALWAYS come from the recompute, because the old dashboard
-  // recomputes both sections on load (do_storage_calculation / do_transport_
-  // calculation) and shows those figures — NOT the stored charge columns.
-  //   • Transport: the stored pickup_charges / total_pickup_charges_with_gst fold
-  //     in the pallet surcharge (e.g. 4311), but the old dashboard shows the
-  //     recompute (pieces × multi-factor − coupon = 3311; Due = 3311 − ₹1000 token
-  //     = 2311). Reading a stored field made the total ~₹1000 high.
-  //   • Storage: coupon-applied GST-inclusive total (e.g. 2903), months derived
-  //     from it. `dirty` no longer affects the displayed figures — editing a
-  //     charge updates `form`, which flows through *Calc automatically.
-  const transportTotal = transportCalc.total;
-  const transportDue = transportCalc.due;
+  // Display values — faithful to the old dashboard (customer_detailsnew):
+  //   • Transport: show the STORED value (total_pickup_charges_with_gst /
+  //     transport_due_charges) on load — the old dashboard renders these stored
+  //     columns verbatim and does NOT recompute transport on load, so this matches
+  //     it to the paisa (and NEVER adds a pallet surcharge). Only once the rep edits
+  //     a transport charge/coupon (dirty.transport) do we recompute:
+  //     (line items × multi-factor − coupon), no surcharge — same as
+  //     do_transport_calculation.
+  //   • Storage: the old dashboard recomputes storage on load
+  //     (do_storage_calculation), so we always show the recompute.
+  const transportTotal = dirty.transport ? transportCalc.total : (num(q?.total_pickup_charges_with_gst) || transportCalc.total);
+  const transportDue = dirty.transport ? transportCalc.due : (num(q?.transport_due_charges) || transportCalc.due);
   const storageTotal = storageCalc.total;
   const storageMonth3 = storageCalc.month3;
   const storageMonth6 = storageCalc.month6;
