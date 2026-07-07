@@ -91,6 +91,10 @@ export default function NewQuotationPage() {
   const [pricingLoading, setPricingLoading] = useState(false);
   // Editable charges (rep can override before proceeding), seeded from the engine.
   const [charges, setCharges] = useState({ storage: 0, transport: 0, token: 0 });
+  // Editable storage + transport discount % (rep can give extra discount).
+  // Seeded from the engine's default coupons; saved as safestorage-percent-<N>
+  // so the created quote + its email reflect the rep's chosen discount.
+  const [discount, setDiscount] = useState({ storage: 0, transport: 0 });
   const [saving, setSaving] = useState(false);
   const [saveResult, setSaveResult] = useState(null); // { ok, quotationId } | { ok:false, msg }
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -182,8 +186,10 @@ export default function NewQuotationPage() {
         extra_km_charges: num(pricing.extra_km_charges),
         total_distance: num(pricing.input_distance),
         total_pallet: num(pricing.input_pallet),
-        coupon_code: pricing.coupon_code || "",
-        transport_coupon: pricing.transport_coupon || "",
+        // Rep-chosen discounts → persisted as the quote's coupons so the created
+        // quotation + its email reflect them (backend honors posted coupons).
+        coupon_code: `safestorage-percent-${clampPct(discount.storage)}`,
+        transport_coupon: `safestorage-percent-${clampPct(discount.transport)}`,
         created_by: session?.user_id || "",
       });
       if (r?.status === "success" && r?.quotation_id) {
@@ -290,13 +296,19 @@ export default function NewQuotationPage() {
     };
   }, [qty, recommended, c, id]);
 
-  // Seed editable charge fields whenever the engine returns fresh numbers.
+  // Seed editable charge fields + discount % whenever the engine returns fresh
+  // numbers (e.g. items change). The discount defaults come from the engine's
+  // coupon strings; the rep can then adjust them.
   useEffect(() => {
     if (!pricing) return;
     setCharges({
       storage: Math.round(num(pricing.total_storage_charges)),
       transport: Math.round(num(pricing.total_transport_charges)),
       token: Math.round(num(pricing.stacking_barcode_charges)),
+    });
+    setDiscount({
+      storage: couponPercent(pricing.coupon_code),
+      transport: couponPercent(pricing.transport_coupon),
     });
   }, [pricing]);
 
@@ -318,13 +330,13 @@ export default function NewQuotationPage() {
   //               token (advance); the balance is what's left after the token.
   const payable = useMemo(() => {
     const storageIncGst = Math.ceil(num(charges.storage) * 1.18);
-    const storagePct = couponPercent(pricing?.coupon_code);
-    const storageDiscount = Math.round(couponAmount(pricing?.coupon_code, storageIncGst));
+    const storagePct = clampPct(discount.storage);
+    const storageDiscount = Math.round((storagePct / 100) * storageIncGst);
     const storageAfter = Math.max(Math.ceil(storageIncGst - storageDiscount), 0);
 
     const transport = num(charges.transport);
-    const transportPct = couponPercent(pricing?.transport_coupon);
-    const transportDiscount = Math.round(couponAmount(pricing?.transport_coupon, transport));
+    const transportPct = clampPct(discount.transport);
+    const transportDiscount = Math.round((transportPct / 100) * transport);
     const transportAfter = Math.max(Math.ceil(transport - transportDiscount), 0);
     const transportToken = 1000; // pickup advance, same as the quotation view
     const transportDue = Math.max(transportAfter - transportToken, 0);
@@ -335,7 +347,7 @@ export default function NewQuotationPage() {
       transportToken, transportDue,
       warehouseToken: num(charges.token),
     };
-  }, [charges, pricing]);
+  }, [charges, discount]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-6">
@@ -666,6 +678,22 @@ export default function NewQuotationPage() {
                         onChange={(v) => setCharges((c) => ({ ...c, token: v }))}
                       />
 
+                      {/* Editable storage + transport discount %. Recomputes the
+                          payable block below live and is saved with the quote, so
+                          the created quotation + its email reflect these values. */}
+                      <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3.5">
+                        <PctField
+                          label="Storage discount %"
+                          value={discount.storage}
+                          onChange={(v) => setDiscount((d) => ({ ...d, storage: v }))}
+                        />
+                        <PctField
+                          label="Transport discount %"
+                          value={discount.transport}
+                          onChange={(v) => setDiscount((d) => ({ ...d, transport: v }))}
+                        />
+                      </div>
+
                       <div className="flex items-center justify-between border-t border-slate-100 pt-3">
                         <span className="text-sm font-semibold text-slate-600">Total (pre-GST)</span>
                         <span className="text-xl font-bold text-slate-900">
@@ -708,9 +736,9 @@ export default function NewQuotationPage() {
                         )}
                       </div>
 
-                      {(pricing.coupon_code || pricing.transport_coupon) && (
+                      {(payable.storagePct > 0 || payable.transportPct > 0) && (
                         <div className="text-[11px] text-slate-400">
-                          {pricing.coupon_code} · {pricing.transport_coupon}
+                          safestorage-percent-{payable.storagePct} · safestorage-percent-{payable.transportPct}
                         </div>
                       )}
                     </div>
@@ -964,6 +992,26 @@ function ChargeField({ label, value, onChange }) {
   );
 }
 
+// Whole-percent input (0–100) for the editable storage / transport discount.
+function PctField({ label, value, onChange }) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-semibold text-slate-600">{label}</label>
+      <div className="relative">
+        <input
+          type="number"
+          min={0}
+          max={100}
+          value={value}
+          onChange={(e) => onChange(Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0))))}
+          className="w-full rounded-xl border border-slate-200 py-2.5 pl-3 pr-8 text-sm font-semibold text-slate-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
+      </div>
+    </div>
+  );
+}
+
 /* --------------- item → colored icon (keyword match, first wins) --------------- */
 // Static class pairs so Tailwind keeps them (no dynamic `bg-${x}` strings).
 const TONES = {
@@ -1124,6 +1172,10 @@ function couponAmount(code, base) {
   if (a[1] === "flat") return num(a[2]);
   if (a[2]) return (num(a[2]) / 100) * num(base);
   return 0;
+}
+// Clamp a rep-entered discount to a sane whole percent (0–100).
+function clampPct(v) {
+  return Math.min(100, Math.max(0, Math.round(num(v))));
 }
 // The percent off, for the "(20%)" label. 0 when it's a flat/blank coupon.
 function couponPercent(code) {
