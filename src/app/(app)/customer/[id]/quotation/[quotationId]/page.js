@@ -19,6 +19,7 @@ import {
 import { fetchQuotationEditData, saveQuotationData } from "@/lib/customer";
 import { getSession } from "@/lib/auth";
 import PlacesAutocompleteInput from "@/components/PlacesAutocompleteInput";
+import ItemsList from "@/components/ItemsList";
 
 export default function QuotationDetailPage() {
   const { id, quotationId } = useParams();
@@ -286,14 +287,7 @@ export default function QuotationDetailPage() {
                 {items.length === 0 ? (
                   <p className="py-4 text-center text-sm text-slate-400">No items.</p>
                 ) : (
-                  <ul className="divide-y divide-slate-100">
-                    {items.map((it, i) => (
-                      <li key={i} className="flex items-center justify-between py-2 text-sm">
-                        <span className="capitalize text-slate-700">{it.item_name}</span>
-                        <span className="font-semibold text-slate-700">×{it.item_count}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <ItemsList items={items} />
                 )}
               </Card>
 

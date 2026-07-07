@@ -50,6 +50,7 @@ import { getSession } from "@/lib/auth";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { scoreCustomer, auditFollowup, contactSecs, TIER_STYLE } from "@/lib/leadScore";
 import CustomerDetailsForm from "@/components/CustomerDetailsForm";
+import ItemsList from "@/components/ItemsList";
 
 // Existing admin endpoints (these pages/flows already live on the server).
 const ADMIN_BASE = API_BASE; // e.g. https://safestorage.in/back
@@ -702,24 +703,7 @@ function QuoteDetailModal({ quote, address, onClose }) {
               ) : items.length === 0 ? (
                 <Empty>No items in this quotation.</Empty>
               ) : (
-                <div className="space-y-1.5">
-                  {items.map((it, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2"
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500">
-                        <Package className="h-4 w-4" strokeWidth={1.75} />
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium capitalize text-slate-700">
-                        {it.item_name || "—"}
-                      </span>
-                      <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-indigo-600 px-2 text-xs font-bold text-white">
-                        {it.item_count ?? "—"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <ItemsList items={items} />
               )}
             </div>
           </div>
