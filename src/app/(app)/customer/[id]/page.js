@@ -308,7 +308,7 @@ export default function CustomerPage() {
 
             {/* Tab: Payment (Account Summary · Due Payment · Transaction) */}
             {tab === "transactions" && (
-              <PaymentTab quotes={quotes} transactions={transactions} payments={payments} />
+              <PaymentTab quotes={quotes} transactions={transactions} payments={payments} walletAmount={isConverted ? data?.walletAmount : null} />
             )}
 
             {/* Tab: Inventory */}
@@ -1096,10 +1096,23 @@ function Empty({ children }) {
 }
 
 /* ----------------------------- Payment (3 sub-sections) ----------------------------- */
-function PaymentTab({ quotes, transactions, payments }) {
+function PaymentTab({ quotes, transactions, payments, walletAmount }) {
   const [sub, setSub] = useState("summary");
   return (
     <div className="space-y-4">
+      {walletAmount != null && (
+        <div className="flex items-center justify-between rounded-xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+              <Wallet className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-semibold text-slate-600">Wallet balance</span>
+          </div>
+          <span className="text-lg font-extrabold tabular-nums text-violet-700">
+            ₹{Number(walletAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </div>
+      )}
       <div className="flex items-center gap-5 overflow-x-auto border-b border-slate-200">
         <SubTab active={sub === "summary"} onClick={() => setSub("summary")}>
           Account Summary

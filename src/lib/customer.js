@@ -15,6 +15,7 @@ export async function fetchCustomerDetails(customerId, { signal } = {}) {
   const arr = (v) => (Array.isArray(v) ? v : []);
   return {
     customer: data.customer || null,
+    walletAmount: data.wallet_amount != null ? Number(data.wallet_amount) : null,
     quotations: arr(data.quotations),
     transactions: arr(data.transactions),
     payments: arr(data.payments),
