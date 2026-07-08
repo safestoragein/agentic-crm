@@ -51,6 +51,7 @@ import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { scoreCustomer, auditFollowup, contactSecs, TIER_STYLE } from "@/lib/leadScore";
 import CustomerDetailsForm from "@/components/CustomerDetailsForm";
 import ItemsList from "@/components/ItemsList";
+import PlacesAutocompleteInput from "@/components/PlacesAutocompleteInput";
 
 // Existing admin endpoints (these pages/flows already live on the server).
 const ADMIN_BASE = API_BASE; // e.g. https://safestorage.in/back
@@ -2080,7 +2081,12 @@ function EditWorkOrderModal({ order, customerId, onClose, onSaved }) {
 
             <div className="md:col-span-2">
               <label className={labelCls}>Address <span className="text-rose-500">*</span></label>
-              <input value={f.order_address} onChange={(e) => set("order_address", e.target.value)} className={fieldCls} placeholder="Enter address" />
+              <PlacesAutocompleteInput
+                value={f.order_address}
+                onChange={(v) => set("order_address", v)}
+                className={fieldCls}
+                placeholder="Start typing an address…"
+              />
             </div>
 
             <div>
