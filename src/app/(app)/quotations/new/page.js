@@ -35,6 +35,7 @@ export default function CreateQuotationPage() {
   const [error, setError] = useState("");
   const [existInfo, setExistInfo] = useState(null);
   const [existName, setExistName] = useState("");
+  const [existBy, setExistBy] = useState("phone");
   const [checking, setChecking] = useState(false);
   const [pickupLoc, setPickupLoc] = useState({ lat: null, lng: null });
   const [dist, setDist] = useState(null); // { km, intercity, warehouse } | { error:true } | null
@@ -67,21 +68,31 @@ export default function CreateQuotationPage() {
     }
   }, []);
 
-  // The moment the rep finishes the phone field, check if a customer with that
-  // number already exists (read-only search) and surface a link to open them —
-  // same as the old dashboard, but shown immediately instead of only on submit.
-  const checkExisting = async () => {
+  // The moment the rep finishes the phone or email field, check if a customer
+  // with that number/email already exists (read-only search) and surface a link
+  // to open them — same as the old dashboard, but shown immediately instead of
+  // only on submit.
+  const checkExisting = async (by = "phone") => {
     const phone = (form.customer_contact1 || "").trim();
-    if (!/^\d{10}$/.test(phone)) return;
+    const email = (form.customer_email || "").trim().toLowerCase();
+    let search = "", matches;
+    if (by === "email") {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+      search = email;
+      matches = (r) => String(r.customer_email || "").trim().toLowerCase() === email;
+    } else {
+      if (!/^\d{10}$/.test(phone)) return;
+      search = phone;
+      matches = (r) => String(r.customer_contact1 || "").replace(/\D/g, "").endsWith(phone);
+    }
     setChecking(true);
     try {
-      const { rows } = await fetchCustomers({ search: phone, length: 5, customer_type: "" });
-      const match = (rows || []).find(
-        (r) => String(r.customer_contact1 || "").replace(/\D/g, "").endsWith(phone)
-      );
+      const { rows } = await fetchCustomers({ search, length: 5, customer_type: "" });
+      const match = (rows || []).find(matches);
       if (match?.customer_id) {
         setExistInfo(String(match.customer_id));
         setExistName(match.customer_name || "");
+        setExistBy(by);
       }
     } catch {
       /* best-effort; the submit-time check still catches duplicates */
@@ -231,7 +242,7 @@ export default function CreateQuotationPage() {
               <input
                 value={form.customer_contact1}
                 onChange={(e) => set("customer_contact1", e.target.value.replace(/\D/g, "").slice(0, 10))}
-                onBlur={checkExisting}
+                onBlur={() => checkExisting("phone")}
                 className={`${inputCls} pl-11`}
                 placeholder="10-digit mobile"
                 inputMode="numeric"
@@ -240,7 +251,7 @@ export default function CreateQuotationPage() {
             {checking && (
               <p className="mt-1 text-xs text-slate-400">Checking for existing customer…</p>
             )}
-            {existInfo && (
+            {existInfo && existBy === "phone" && (
               <p className="mt-1 text-xs font-semibold text-rose-600">
                 Customer already exists{existName ? ` (${existName})` : ""}.{" "}
                 <a href={appHref(`/customer/${existInfo}`)} className="underline hover:text-rose-700">
@@ -251,7 +262,16 @@ export default function CreateQuotationPage() {
             )}
           </Field>
           <Field label="Email" required>
-            <input value={form.customer_email} onChange={(e) => set("customer_email", e.target.value)} className={inputCls} placeholder="name@example.com" type="email" />
+            <input value={form.customer_email} onChange={(e) => set("customer_email", e.target.value)} onBlur={() => checkExisting("email")} className={inputCls} placeholder="name@example.com" type="email" />
+            {existInfo && existBy === "email" && (
+              <p className="mt-1 text-xs font-semibold text-rose-600">
+                Customer already exists{existName ? ` (${existName})` : ""}.{" "}
+                <a href={appHref(`/customer/${existInfo}`)} className="underline hover:text-rose-700">
+                  Click here
+                </a>{" "}
+                to open.
+              </p>
+            )}
           </Field>
           <Field label="City" required>
             <select value={form.customer_local_city} onChange={(e) => set("customer_local_city", e.target.value)} className={inputCls}>
