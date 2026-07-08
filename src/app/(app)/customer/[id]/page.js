@@ -45,7 +45,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { API_BASE } from "@/lib/api";
-import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra, saveOrderNote, fetchWorkOrderEditData, saveWorkOrder, deleteWorkOrder, markOrderStatus, fetchWorkOrderRescheduleData, saveWorkOrderReschedule, fetchPickupSlots } from "@/lib/customer";
+import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra, saveOrderNote, fetchWorkOrderEditData, saveWorkOrder, fetchWorkOrderRescheduleData, saveWorkOrderReschedule, fetchPickupSlots } from "@/lib/customer";
 import { getSession } from "@/lib/auth";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { scoreCustomer, auditFollowup, contactSecs, TIER_STYLE } from "@/lib/leadScore";
@@ -1555,43 +1555,9 @@ function WorkOrdersTab({ orders, loading, error, customerId, onSaved }) {
   const [savedNotes, setSavedNotes] = useState({}); // order_id -> latest note (optimistic)
   const [editOrder, setEditOrder] = useState(null); // order being edited (full work-order form)
   const [rescheduleOrder, setRescheduleOrder] = useState(null); // order being rescheduled
-  const [busyOrder, setBusyOrder] = useState(null); // order_id with an in-flight delete/mark
-  const [rowErr, setRowErr] = useState("");
 
-  const session = getSession();
-  // Whether a status supports Reschedule / Mark Booked (same statuses the legacy shows them for).
+  // Whether a status supports Reschedule (same statuses the legacy shows it for).
   const isOpen = (s) => ["scheduled", "pending", "reschedule"].includes(String(s || "").toLowerCase());
-
-  const doDelete = async (o) => {
-    if (busyOrder) return;
-    if (!window.confirm(`Delete work order WO${o.order_id}? This can't be undone.`)) return;
-    setBusyOrder(o.order_id);
-    setRowErr("");
-    try {
-      const res = await deleteWorkOrder({ orderId: o.order_id, createdBy: session?.user_id });
-      if (String(res).trim() === "success") onSaved && onSaved();
-      else setRowErr("Couldn't delete this work order. Please try again.");
-    } catch {
-      setRowErr("Couldn't delete this work order. Please try again.");
-    } finally {
-      setBusyOrder(null);
-    }
-  };
-
-  const doMarkBooked = async (o) => {
-    if (busyOrder) return;
-    setBusyOrder(o.order_id);
-    setRowErr("");
-    try {
-      const res = await markOrderStatus({ orderId: o.order_id, status: "pending" });
-      if (String(res).trim() === "success") onSaved && onSaved();
-      else setRowErr("Couldn't update this work order. Please try again.");
-    } catch {
-      setRowErr("Couldn't update this work order. Please try again.");
-    } finally {
-      setBusyOrder(null);
-    }
-  };
 
   const noteOf = (o) => (savedNotes[o.order_id] !== undefined ? savedNotes[o.order_id] : o.customer_notes || "");
   const openNote = (o) => {
@@ -1681,26 +1647,7 @@ function WorkOrdersTab({ orders, loading, error, customerId, onSaved }) {
                             <CalendarClock className="h-3.5 w-3.5" /> Reschedule
                           </button>
                         )}
-                        {isOpen(o.order_status) && (
-                          <button
-                            onClick={() => doMarkBooked(o)}
-                            disabled={busyOrder === o.order_id}
-                            title="Mark Booked"
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 disabled:opacity-60"
-                          >
-                            {busyOrder === o.order_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Mark Booked
-                          </button>
-                        )}
-                        <button
-                          onClick={() => doDelete(o)}
-                          disabled={busyOrder === o.order_id}
-                          title="Delete work order"
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
                       </div>
-                      {rowErr && busyOrder === null && <p className="mt-1 text-[11px] font-medium text-rose-600">{rowErr}</p>}
                     </td>
                     <td className="px-4 py-2.5">
                       <button
