@@ -45,7 +45,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { API_BASE } from "@/lib/api";
-import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra, saveOrderNote, fetchWorkOrderEditData, saveWorkOrder } from "@/lib/customer";
+import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra, saveOrderNote, fetchWorkOrderEditData, saveWorkOrder, deleteWorkOrder, markOrderStatus, fetchWorkOrderRescheduleData, saveWorkOrderReschedule, fetchPickupSlots } from "@/lib/customer";
 import { getSession } from "@/lib/auth";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { scoreCustomer, auditFollowup, contactSecs, TIER_STYLE } from "@/lib/leadScore";
@@ -1554,6 +1554,44 @@ function WorkOrdersTab({ orders, loading, error, customerId, onSaved }) {
   const [saveErr, setSaveErr] = useState("");
   const [savedNotes, setSavedNotes] = useState({}); // order_id -> latest note (optimistic)
   const [editOrder, setEditOrder] = useState(null); // order being edited (full work-order form)
+  const [rescheduleOrder, setRescheduleOrder] = useState(null); // order being rescheduled
+  const [busyOrder, setBusyOrder] = useState(null); // order_id with an in-flight delete/mark
+  const [rowErr, setRowErr] = useState("");
+
+  const session = getSession();
+  // Whether a status supports Reschedule / Mark Booked (same statuses the legacy shows them for).
+  const isOpen = (s) => ["scheduled", "pending", "reschedule"].includes(String(s || "").toLowerCase());
+
+  const doDelete = async (o) => {
+    if (busyOrder) return;
+    if (!window.confirm(`Delete work order WO${o.order_id}? This can't be undone.`)) return;
+    setBusyOrder(o.order_id);
+    setRowErr("");
+    try {
+      const res = await deleteWorkOrder({ orderId: o.order_id, createdBy: session?.user_id });
+      if (String(res).trim() === "success") onSaved && onSaved();
+      else setRowErr("Couldn't delete this work order. Please try again.");
+    } catch {
+      setRowErr("Couldn't delete this work order. Please try again.");
+    } finally {
+      setBusyOrder(null);
+    }
+  };
+
+  const doMarkBooked = async (o) => {
+    if (busyOrder) return;
+    setBusyOrder(o.order_id);
+    setRowErr("");
+    try {
+      const res = await markOrderStatus({ orderId: o.order_id, status: "pending" });
+      if (String(res).trim() === "success") onSaved && onSaved();
+      else setRowErr("Couldn't update this work order. Please try again.");
+    } catch {
+      setRowErr("Couldn't update this work order. Please try again.");
+    } finally {
+      setBusyOrder(null);
+    }
+  };
 
   const noteOf = (o) => (savedNotes[o.order_id] !== undefined ? savedNotes[o.order_id] : o.customer_notes || "");
   const openNote = (o) => {
@@ -1626,13 +1664,43 @@ function WorkOrdersTab({ orders, loading, error, customerId, onSaved }) {
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      <button
-                        onClick={() => setEditOrder(o)}
-                        title="Edit work order"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
-                      >
-                        <Pencil className="h-3.5 w-3.5" /> Edit
-                      </button>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          onClick={() => setEditOrder(o)}
+                          title="Edit work order"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </button>
+                        {isOpen(o.order_status) && (
+                          <button
+                            onClick={() => setRescheduleOrder(o)}
+                            title="Reschedule"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-700 transition-colors hover:bg-amber-100"
+                          >
+                            <CalendarClock className="h-3.5 w-3.5" /> Reschedule
+                          </button>
+                        )}
+                        {isOpen(o.order_status) && (
+                          <button
+                            onClick={() => doMarkBooked(o)}
+                            disabled={busyOrder === o.order_id}
+                            title="Mark Booked"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 disabled:opacity-60"
+                          >
+                            {busyOrder === o.order_id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Mark Booked
+                          </button>
+                        )}
+                        <button
+                          onClick={() => doDelete(o)}
+                          disabled={busyOrder === o.order_id}
+                          title="Delete work order"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-60"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      {rowErr && busyOrder === null && <p className="mt-1 text-[11px] font-medium text-rose-600">{rowErr}</p>}
                     </td>
                     <td className="px-4 py-2.5">
                       <button
@@ -1697,8 +1765,204 @@ function WorkOrdersTab({ orders, loading, error, customerId, onSaved }) {
           }}
         />
       )}
+
+      {/* Reschedule modal — ported from the legacy order/order_reschedule */}
+      {rescheduleOrder && (
+        <RescheduleWorkOrderModal
+          order={rescheduleOrder}
+          onClose={() => setRescheduleOrder(null)}
+          onSaved={() => {
+            setRescheduleOrder(null);
+            onSaved && onSaved();
+          }}
+        />
+      )}
     </Panel>
   );
+}
+
+/* Reschedule Work Order — faithful port of order/order_reschedule + add_reschedule_data.
+   Loads the order + per-pallet vendors + charges, loads timeslots for the chosen
+   date (auth/get_available_slots), then posts the same fields the legacy form does
+   to agentic_crm/save_work_order_reschedule (re-dispatches to add_reschedule_data). */
+function RescheduleWorkOrderModal({ order, onClose, onSaved }) {
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState("");
+  const [d, setD] = useState(null);
+  const [f, setF] = useState({ pickup_type: "pickup", vt_id: "", pickup_date: "", pickup_timeslot: "" });
+  const [slots, setSlots] = useState([]); // [{value,label}]
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    setLoading(true);
+    setLoadErr("");
+    fetchWorkOrderRescheduleData(order.order_id, { signal: ctrl.signal })
+      .then((res) => {
+        if (!res) throw new Error("no data");
+        setD(res);
+        setF((p) => ({ ...p, pickup_type: res.order?.pickup_type || "pickup" }));
+      })
+      .catch((e) => {
+        if (e?.name !== "AbortError") setLoadErr("Couldn't load this order. Please try again.");
+      })
+      .finally(() => setLoading(false));
+    return () => ctrl.abort();
+  }, [order.order_id]);
+
+  // Load timeslots whenever the date / transport type / vendor changes (mirrors
+  // the legacy get_timeslot / get_vendor_timeslot_list AJAX to get_available_slots).
+  useEffect(() => {
+    if (!d || !f.pickup_date) { setSlots([]); return; }
+    const ctrl = new AbortController();
+    setSlotsLoading(true);
+    fetchPickupSlots(
+      {
+        quotation_id: d.order?.quotation_id || "",
+        pickup_date: f.pickup_date, // dd/mm/yyyy
+        pickup_type: f.pickup_type,
+        vt_id: f.pickup_type === "vendor_transport" ? f.vt_id : "",
+        is_genrate_order: "yes",
+      },
+      { signal: ctrl.signal }
+    )
+      .then((res) => {
+        setSlots(parseSlotOptions(res?.info));
+      })
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
+    return () => ctrl.abort();
+  }, [d, f.pickup_date, f.pickup_type, f.vt_id]);
+
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  const submit = async () => {
+    if (saving || !d) return;
+    setSaveErr("");
+    if (!f.pickup_date) { setSaveErr("Please select a date."); return; }
+    if (!f.pickup_timeslot) { setSaveErr("Please select a time-slot."); return; }
+    if (f.pickup_type === "vendor_transport" && !f.vt_id) { setSaveErr("Please select a vendor."); return; }
+    const pay = f.pickup_type === "warehouse_arrival" ? d.charges?.stack : d.charges?.pickup;
+    setSaving(true);
+    try {
+      const res = await saveWorkOrderReschedule({
+        customer_id: d.order?.customer_id || "",
+        quotation_id: d.order?.quotation_id || "",
+        order_id: order.order_id,
+        customer_pay_amt: pay || "",
+        pickup_type: f.pickup_type,
+        vt_id: f.pickup_type === "vendor_transport" ? f.vt_id : "",
+        pickup_date: f.pickup_date, // dd/mm/yyyy
+        pickup_timeslot: f.pickup_timeslot,
+        created_by: getSession()?.user_id || "",
+      });
+      if (String(res).trim() === "success") onSaved();
+      else setSaveErr("Couldn't reschedule this order. Please try again.");
+    } catch {
+      setSaveErr("Couldn't reschedule this order. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldCls = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10";
+  const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4" onClick={() => !saving && onClose()}>
+      <div className="my-6 w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+            <CalendarClock className="h-4 w-4 text-amber-600" /> Reschedule · WO{order.order_id}
+          </h3>
+          <button onClick={() => !saving && onClose()} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+        </div>
+
+        {loading ? (
+          <div className="py-16 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-indigo-500" /></div>
+        ) : loadErr ? (
+          <div className="px-5 py-10 text-center text-sm font-medium text-rose-600">{loadErr}</div>
+        ) : (
+          <div className="grid gap-4 px-5 py-4">
+            <div>
+              <label className={labelCls}>Transport</label>
+              <div className="flex flex-col gap-2 text-sm text-slate-700">
+                {[
+                  ["pickup", `SafeStorage Transport${d.charges?.pickup ? ` (₹${d.charges.pickup})` : ""}`],
+                  ["vendor_transport", `Third party – Vendor Transport${d.charges?.pickup ? ` (₹${d.charges.pickup})` : ""}`],
+                  ["warehouse_arrival", `Own Transport (warehouse arrival)${d.charges?.stack ? ` (₹${d.charges.stack})` : ""}`],
+                ].map(([v, label]) => (
+                  <label key={v} className="inline-flex items-center gap-1.5">
+                    <input type="radio" name="r_pickup_type" checked={f.pickup_type === v} onChange={() => set("pickup_type", v)} className="h-4 w-4 accent-indigo-600" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {f.pickup_type === "vendor_transport" && (
+              <div>
+                <label className={labelCls}>Vendor <span className="text-rose-500">*</span></label>
+                <select value={f.vt_id} onChange={(e) => set("vt_id", e.target.value)} className={fieldCls}>
+                  <option value="">Select Option</option>
+                  {(d.vendors || []).map((v) => (
+                    <option key={v.vt_id} value={v.vt_id}>{v.vt_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className={labelCls}>New date <span className="text-rose-500">*</span></label>
+              <input
+                type="date"
+                value={toISO(f.pickup_date)}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => { set("pickup_date", toDMY(e.target.value)); set("pickup_timeslot", ""); }}
+                className={fieldCls}
+              />
+            </div>
+
+            <div>
+              <label className={labelCls}>Time-slot <span className="text-rose-500">*</span></label>
+              <select value={f.pickup_timeslot} onChange={(e) => set("pickup_timeslot", e.target.value)} disabled={!f.pickup_date || slotsLoading} className={fieldCls}>
+                <option value="">{!f.pickup_date ? "Pick a date first" : slotsLoading ? "Loading…" : slots.length ? "Select a slot" : "No slots available"}</option>
+                {slots.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {saveErr && <p className="text-xs font-medium text-rose-600">{saveErr}</p>}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
+          <button onClick={onClose} disabled={saving} className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">Back</button>
+          <button onClick={submit} disabled={saving || loading || !!loadErr} className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-amber-700 disabled:opacity-60">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Reschedule
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Parse the "<option value='x'>Label</option>…" HTML the legacy get_available_slots
+// returns into [{value,label}] (skipping any placeholder empty option).
+function parseSlotOptions(html) {
+  if (!html) return [];
+  const out = [];
+  const re = /<option[^>]*value=["']([^"']*)["'][^>]*>([\s\S]*?)<\/option>/gi;
+  let m;
+  while ((m = re.exec(html))) {
+    const value = m[1].trim();
+    const label = m[2].replace(/<[^>]+>/g, "").trim();
+    if (value) out.push({ value, label: label || value });
+  }
+  return out;
 }
 
 /* Edit Work Order — faithful port of customer/edit_work_order + add_work_order.

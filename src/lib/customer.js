@@ -85,15 +85,14 @@ export async function fetchWorkOrderEditData({ customerId, orderId }, { signal }
   return p?.data || null;
 }
 
-// Save an edited work order — re-dispatches to the EXACT legacy
-// customer/add_work_order, which echoes the plain text "success" (not JSON).
-// `fields` mirrors the legacy form post (see get_work_order_edit_data doc).
-export async function saveWorkOrder(fields, { signal } = {}) {
+// POST form fields to an agentic_crm endpoint that echoes PLAIN TEXT (e.g.
+// "success") rather than JSON. Returns the trimmed response text.
+async function postText(path, fields, { signal } = {}) {
   const body = new URLSearchParams();
   Object.entries(fields).forEach(([k, v]) => {
     if (v !== undefined && v !== null) body.append(k, v);
   });
-  const res = await fetch(endpoint("save_work_order", MOD), {
+  const res = await fetch(endpoint(path, MOD), {
     method: "POST",
     mode: "cors",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -102,6 +101,35 @@ export async function saveWorkOrder(fields, { signal } = {}) {
   });
   if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return (await res.text()).trim();
+}
+
+// Save an edited work order — re-dispatches to the EXACT legacy
+// customer/add_work_order, which echoes the plain text "success" (not JSON).
+// `fields` mirrors the legacy form post (see get_work_order_edit_data doc).
+export async function saveWorkOrder(fields, { signal } = {}) {
+  return postText("save_work_order", fields, { signal });
+}
+
+// Delete a work order (re-dispatch to order/delete_work_order). -> "success"
+export async function deleteWorkOrder({ orderId, createdBy }, { signal } = {}) {
+  return postText("delete_work_order", { order_id: orderId, created_by: createdBy || "" }, { signal });
+}
+
+// Change a work order's status ("pending" = Mark Booked, "scheduled"). -> "success"
+export async function markOrderStatus({ orderId, status }, { signal } = {}) {
+  return postText("mark_order_status", { order_id: orderId, order_status: status }, { signal });
+}
+
+// Reschedule modal data (order + customer + quotation charges + per-pallet vendors).
+export async function fetchWorkOrderRescheduleData(orderId, { signal } = {}) {
+  const p = await apiGet(`get_work_order_reschedule_data?order_id=${encodeURIComponent(orderId)}`, { signal, module: MOD });
+  return p?.data || null;
+}
+
+// Save a reschedule — re-dispatches to the EXACT legacy order/add_reschedule_data
+// (new date, prorated charges/payments, transactions, e-mails). -> "success"|"exist"
+export async function saveWorkOrderReschedule(fields, { signal } = {}) {
+  return postText("save_work_order_reschedule", fields, { signal });
 }
 
 // Quotation vs warehouse comparison (items, charges, increased/decreased diffs).
