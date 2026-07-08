@@ -35,12 +35,13 @@ function fmtDateTime(dt) {
 function stageBadge(stage) {
   const s = String(stage || "").toLowerCase();
   if (!stage) return { label: "—", cls: "bg-slate-100 text-slate-500" };
-  if (/negoti/.test(s)) return { label: stage, cls: "bg-amber-50 text-amber-700" };
-  if (/won|book/.test(s)) return { label: stage, cls: "bg-emerald-50 text-emerald-700" };
-  if (/lost|invalid/.test(s)) return { label: stage, cls: "bg-slate-100 text-slate-500" };
-  if (/quot/.test(s)) return { label: stage, cls: "bg-indigo-50 text-indigo-700" };
-  if (/new/.test(s)) return { label: stage, cls: "bg-sky-50 text-sky-700" };
-  return { label: stage, cls: "bg-slate-100 text-slate-600" };
+  if (/negoti/.test(s)) return { label: stage, cls: "bg-amber-100 text-amber-800 ring-1 ring-amber-200" };
+  if (/won|book/.test(s)) return { label: stage, cls: "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200" };
+  if (/lost|invalid/.test(s)) return { label: stage, cls: "bg-rose-100 text-rose-700 ring-1 ring-rose-200" };
+  if (/quot/.test(s)) return { label: stage, cls: "bg-indigo-100 text-indigo-800 ring-1 ring-indigo-200" };
+  if (/contact/.test(s)) return { label: stage, cls: "bg-violet-100 text-violet-800 ring-1 ring-violet-200" };
+  if (/new/.test(s)) return { label: stage, cls: "bg-sky-100 text-sky-800 ring-1 ring-sky-200" };
+  return { label: stage, cls: "bg-slate-200 text-slate-700 ring-1 ring-slate-300" };
 }
 
 // Bigger lifecycle stepper for a table cell — connected stage nodes (checkmark for
@@ -139,7 +140,7 @@ export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp 
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-slate-800">{fmtMoney(q.value)}</td>
                 <td className="px-4 py-3 text-center"><BookingPill booking={booking} /></td>
-                <td className="px-4 py-3"><span className={`inline-block whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-semibold capitalize ${st.cls}`}>{st.label}</span></td>
+                <td className="px-4 py-3"><span className={`inline-block whitespace-nowrap rounded-md px-2.5 py-1 text-[11px] font-bold capitalize ${st.cls}`}>{st.label}</span></td>
                 <td className="whitespace-nowrap px-4 py-3 text-slate-600">{q.followDate ? fmtDate(q.followDate) : <span className="text-slate-300">—</span>}</td>
                 <td className="px-4 py-3 align-top">
                   {q.noteFull || q.note ? (
