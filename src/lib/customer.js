@@ -75,6 +75,35 @@ export async function saveOrderNote({ orderId, notes, createdBy }, { signal } = 
   );
 }
 
+// Work-order edit form data (port of customer/edit_work_order GET): the order
+// row + city-scoped manager / supervisor / warehouse / order-type / vendor lists.
+export async function fetchWorkOrderEditData({ customerId, orderId }, { signal } = {}) {
+  const p = await apiGet(
+    `get_work_order_edit_data?customer_id=${encodeURIComponent(customerId)}&order_id=${encodeURIComponent(orderId)}`,
+    { signal, module: MOD }
+  );
+  return p?.data || null;
+}
+
+// Save an edited work order — re-dispatches to the EXACT legacy
+// customer/add_work_order, which echoes the plain text "success" (not JSON).
+// `fields` mirrors the legacy form post (see get_work_order_edit_data doc).
+export async function saveWorkOrder(fields, { signal } = {}) {
+  const body = new URLSearchParams();
+  Object.entries(fields).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) body.append(k, v);
+  });
+  const res = await fetch(endpoint("save_work_order", MOD), {
+    method: "POST",
+    mode: "cors",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+    signal,
+  });
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  return (await res.text()).trim();
+}
+
 // Quotation vs warehouse comparison (items, charges, increased/decreased diffs).
 export async function fetchQuoteVsWarehouse(quotationId, { signal } = {}) {
   const p = await apiGet(`get_both_quotation_order_items?quotation_id=${encodeURIComponent(quotationId)}`, {

@@ -45,7 +45,7 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { API_BASE } from "@/lib/api";
-import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra, saveOrderNote } from "@/lib/customer";
+import { fetchCustomerDetails, fetchQuotationItems, fetchQuoteVsWarehouse, deleteQuotation, fetchCustomerDetailsExtra, saveOrderNote, fetchWorkOrderEditData, saveWorkOrder } from "@/lib/customer";
 import { getSession } from "@/lib/auth";
 import QuickFollowUpModal from "@/components/QuickFollowUpModal";
 import { scoreCustomer, auditFollowup, contactSecs, TIER_STYLE } from "@/lib/leadScore";
@@ -86,23 +86,29 @@ export default function CustomerPage() {
 
   // Extra detail sections (work orders, retrieval, documents, account login) —
   // loaded in the background so the main 360 paints first.
+  const loadExtra = useCallback(
+    (signal) =>
+      fetchCustomerDetailsExtra(id, { signal })
+        .then((d) => {
+          setExtra(d || {});
+          setExtraError(false);
+        })
+        .catch((e) => {
+          if (e?.name === "AbortError") return;
+          // Stop the perpetual spinner and surface the failure (e.g. endpoint not
+          // deployed yet) instead of leaving the tabs loading forever.
+          setExtra({});
+          setExtraError(true);
+        }),
+    [id]
+  );
+
   useEffect(() => {
     if (!id) return;
     const ctrl = new AbortController();
-    fetchCustomerDetailsExtra(id, { signal: ctrl.signal })
-      .then((d) => {
-        setExtra(d || {});
-        setExtraError(false);
-      })
-      .catch((e) => {
-        if (e?.name === "AbortError") return;
-        // Stop the perpetual spinner and surface the failure (e.g. endpoint not
-        // deployed yet) instead of leaving the tabs loading forever.
-        setExtra({});
-        setExtraError(true);
-      });
+    loadExtra(ctrl.signal);
     return () => ctrl.abort();
-  }, [id]);
+  }, [id, loadExtra]);
 
   const c = data?.customer;
   // Newest quotation first, so a just-created quote shows at the top. Sort by
@@ -314,7 +320,7 @@ export default function CustomerPage() {
             {tab === "account" && <AccountTab accountSummary={accountSummary} orders={orders} />}
 
             {/* Tab: Work Orders */}
-            {tab === "workorders" && <WorkOrdersTab orders={workOrders} loading={!extra} error={extraError} />}
+            {tab === "workorders" && <WorkOrdersTab orders={workOrders} loading={!extra} error={extraError} customerId={id} onSaved={() => loadExtra()} />}
 
             {/* Tab: Documents */}
             {tab === "documents" && <DocumentsTab documents={documents} loading={!extra} error={extraError} />}
@@ -1541,12 +1547,13 @@ function AccountLoginCard({ account, nextBill, isZoho }) {
 }
 
 /* ----------------------------- Work Orders ----------------------------- */
-function WorkOrdersTab({ orders, loading, error }) {
+function WorkOrdersTab({ orders, loading, error, customerId, onSaved }) {
   const [noteFor, setNoteFor] = useState(null); // order being edited
   const [noteText, setNoteText] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
   const [savedNotes, setSavedNotes] = useState({}); // order_id -> latest note (optimistic)
+  const [editOrder, setEditOrder] = useState(null); // order being edited (full work-order form)
 
   const noteOf = (o) => (savedNotes[o.order_id] !== undefined ? savedNotes[o.order_id] : o.customer_notes || "");
   const openNote = (o) => {
@@ -1596,6 +1603,7 @@ function WorkOrdersTab({ orders, loading, error }) {
                 <Th className="hidden md:table-cell">Manager</Th>
                 <Th className="hidden lg:table-cell">Supervisor</Th>
                 <Th>Intercity</Th>
+                <Th>Action</Th>
                 <Th>Customer notes</Th>
               </tr>
             </thead>
@@ -1616,6 +1624,15 @@ function WorkOrdersTab({ orders, loading, error }) {
                       ) : (
                         <span className="text-xs text-slate-400">No</span>
                       )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <button
+                        onClick={() => setEditOrder(o)}
+                        title="Edit work order"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </button>
                     </td>
                     <td className="px-4 py-2.5">
                       <button
@@ -1667,8 +1684,269 @@ function WorkOrdersTab({ orders, loading, error }) {
           </div>
         </div>
       )}
+
+      {/* Edit work order modal — full form, ported from the legacy edit_work_order */}
+      {editOrder && (
+        <EditWorkOrderModal
+          order={editOrder}
+          customerId={customerId}
+          onClose={() => setEditOrder(null)}
+          onSaved={() => {
+            setEditOrder(null);
+            onSaved && onSaved();
+          }}
+        />
+      )}
     </Panel>
   );
+}
+
+/* Edit Work Order — faithful port of customer/edit_work_order + add_work_order.
+   Loads the order + city-scoped dropdowns, then posts the same fields the legacy
+   form does to agentic_crm/save_work_order (which re-dispatches to add_work_order). */
+function EditWorkOrderModal({ order, customerId, onClose, onSaved }) {
+  const [loading, setLoading] = useState(true);
+  const [loadErr, setLoadErr] = useState("");
+  const [d, setD] = useState(null); // fetched edit data
+  const [f, setF] = useState(null); // form state
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState("");
+
+  useEffect(() => {
+    const ctrl = new AbortController();
+    setLoading(true);
+    setLoadErr("");
+    fetchWorkOrderEditData({ customerId, orderId: order.order_id }, { signal: ctrl.signal })
+      .then((res) => {
+        if (!res) throw new Error("no data");
+        setD(res);
+        const o = res.order || {};
+        setF({
+          pickup_type: o.pickup_type || "pickup",
+          vt_id: o.vt_id || "",
+          manager_id: String(o.manager_id || ""),
+          warehouse_id: String(o.warehouse_id || ""),
+          order_type: o.order_type || "",
+          order_address: o.order_address || "",
+          order_schedule_date: toDMY(o.order_schedule_date), // dd/mm/yyyy for the input + POST
+          order_timeslot: o.order_timeslot || "",
+          is_confirmed: o.is_confirmed || "Yes",
+          porter: o.porter || "",
+          supervisor_id: String(o.supervisor_id || ""),
+          order_note: o.order_note || "",
+        });
+      })
+      .catch((e) => {
+        if (e?.name !== "AbortError") setLoadErr("Couldn't load this work order. Please try again.");
+      })
+      .finally(() => setLoading(false));
+    return () => ctrl.abort();
+  }, [customerId, order.order_id]);
+
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  const submit = async () => {
+    if (saving || !f) return;
+    setSaveErr("");
+    if (!f.supervisor_id) { setSaveErr("Please select a supervisor."); return; }
+    if (!f.order_address.trim()) { setSaveErr("Please enter the address."); return; }
+    if (!f.order_schedule_date) { setSaveErr("Please select a date."); return; }
+    if (!f.porter) { setSaveErr("Please select the porter option."); return; }
+    if (f.pickup_type === "vendor_transport" && !f.vt_id) { setSaveErr("Please select a vendor."); return; }
+    setSaving(true);
+    try {
+      const res = await saveWorkOrder({
+        pickup_type: f.pickup_type,
+        vt_id: f.pickup_type === "vendor_transport" ? f.vt_id : "",
+        customer_id: d.customer?.customer_id || customerId,
+        quotation_id: d.order?.quotation_id || "",
+        manager_id: f.manager_id,
+        warehouse_id: f.warehouse_id,
+        order_type: f.order_type,
+        order_address: f.order_address,
+        order_schedule_date: f.order_schedule_date, // dd/mm/yyyy
+        order_timeslot: f.order_timeslot,
+        is_confirmed: f.is_confirmed,
+        porter: f.porter,
+        supervisor_id: f.supervisor_id,
+        order_note: f.order_note,
+        order_id: order.order_id,
+        created_by: getSession()?.user_id || "",
+      });
+      if (String(res).trim() === "success") {
+        onSaved();
+      } else {
+        setSaveErr("Couldn't save the work order. Please try again.");
+      }
+    } catch {
+      setSaveErr("Couldn't save the work order. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fieldCls = "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/10";
+  const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-slate-400";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4" onClick={() => !saving && onClose()}>
+      <div className="my-6 w-full max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-800">
+            <Pencil className="h-4 w-4 text-indigo-600" /> Edit Work Order · WO{order.order_id}
+          </h3>
+          <button onClick={() => !saving && onClose()} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
+        </div>
+
+        {loading ? (
+          <div className="py-16 text-center"><Loader2 className="mx-auto h-5 w-5 animate-spin text-indigo-500" /></div>
+        ) : loadErr ? (
+          <div className="px-5 py-10 text-center text-sm font-medium text-rose-600">{loadErr}</div>
+        ) : (
+          <div className="grid gap-4 px-5 py-4 md:grid-cols-2">
+            {/* Transport type */}
+            <div className="md:col-span-2">
+              <label className={labelCls}>Transport</label>
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-700">
+                {[
+                  ["pickup", "SafeStorage Transport"],
+                  ["vendor_transport", "Third party – Vendor Transport"],
+                  ["warehouse_arrival", "Own Transport (warehouse arrival)"],
+                ].map(([v, label]) => (
+                  <label key={v} className="inline-flex items-center gap-1.5">
+                    <input type="radio" name="pickup_type" checked={f.pickup_type === v} onChange={() => set("pickup_type", v)} className="h-4 w-4 accent-indigo-600" />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Vendor (only for vendor_transport) */}
+            {f.pickup_type === "vendor_transport" && (
+              <div className="md:col-span-2">
+                <label className={labelCls}>Vendor <span className="text-rose-500">*</span></label>
+                <select value={f.vt_id} onChange={(e) => set("vt_id", e.target.value)} className={fieldCls}>
+                  <option value="">Select Option</option>
+                  {(d.vendors || []).map((v) => (
+                    <option key={v.vt_id} value={v.vt_id}>{v.vt_name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className={labelCls}>Customer</label>
+              <input value={d.customer?.customer_name || ""} readOnly className={`${fieldCls} bg-slate-50 text-slate-500`} />
+            </div>
+            <div>
+              <label className={labelCls}>Manager</label>
+              <select value={f.manager_id} onChange={(e) => set("manager_id", e.target.value)} className={fieldCls}>
+                <option value="">Select</option>
+                {(d.managers || []).map((m) => (
+                  <option key={m.user_id} value={String(m.user_id)}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className={labelCls}>Warehouse</label>
+              <select value={f.warehouse_id} onChange={(e) => set("warehouse_id", e.target.value)} className={fieldCls}>
+                <option value="">Select</option>
+                {(d.warehouses || []).map((w) => (
+                  <option key={w.warehouse_id} value={String(w.warehouse_id)}>{w.warehouse_name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Order type</label>
+              <select value={f.order_type} onChange={(e) => set("order_type", e.target.value)} className={fieldCls}>
+                <option value="">Select Option</option>
+                {(d.order_types || []).map((t) => (
+                  <option key={t.slug} value={t.slug}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className={labelCls}>Address <span className="text-rose-500">*</span></label>
+              <input value={f.order_address} onChange={(e) => set("order_address", e.target.value)} className={fieldCls} placeholder="Enter address" />
+            </div>
+
+            <div>
+              <label className={labelCls}>Date <span className="text-rose-500">*</span></label>
+              <input type="date" value={toISO(f.order_schedule_date)} onChange={(e) => set("order_schedule_date", toDMY(e.target.value))} className={fieldCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Porter <span className="text-rose-500">*</span></label>
+              <select value={f.porter} onChange={(e) => set("porter", e.target.value)} className={fieldCls}>
+                <option value="">Select</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label className={labelCls}>Is confirmed <span className="text-rose-500">*</span></label>
+              <div className="flex gap-5 pt-1 text-sm text-slate-700">
+                {["No", "Yes"].map((v) => (
+                  <label key={v} className="inline-flex items-center gap-1.5">
+                    <input type="radio" name="is_confirmed" checked={f.is_confirmed === v} onChange={() => set("is_confirmed", v)} className="h-4 w-4 accent-indigo-600" />
+                    {v}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Supervisor — required, single-select (radio table in the legacy) */}
+            <div className="md:col-span-2">
+              <label className={labelCls}>Supervisor <span className="text-rose-500">*</span></label>
+              <div className="max-h-40 overflow-y-auto rounded-lg border border-slate-200">
+                {(d.supervisors || []).length === 0 ? (
+                  <p className="px-3 py-2 text-xs text-slate-400">No supervisors for this city.</p>
+                ) : (
+                  (d.supervisors || []).map((s) => (
+                    <label key={s.user_id} className="flex cursor-pointer items-center gap-2 border-b border-slate-50 px-3 py-2 text-sm text-slate-700 last:border-0 hover:bg-slate-50">
+                      <input type="radio" name="supervisor_id" checked={f.supervisor_id === String(s.user_id)} onChange={() => set("supervisor_id", String(s.user_id))} className="h-4 w-4 accent-indigo-600" />
+                      {s.name}
+                    </label>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className={labelCls}>Note</label>
+              <textarea value={f.order_note} onChange={(e) => set("order_note", e.target.value)} rows={3} className={fieldCls} placeholder="Enter note…" />
+            </div>
+
+            {saveErr && <p className="md:col-span-2 text-xs font-medium text-rose-600">{saveErr}</p>}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
+          <button onClick={onClose} disabled={saving} className="rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-60">Back</button>
+          <button onClick={submit} disabled={saving || loading || !!loadErr} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-60">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Submit
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Date helpers for the work-order form. The backend stores/consumes Y-m-d for
+// display but the legacy add_work_order parses the POSTed date as d/m/Y.
+function toDMY(v) {
+  if (!v) return "";
+  const s = String(v).slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) { const [y, m, dd] = s.split("-"); return `${dd}/${m}/${y}`; }
+  return s; // already d/m/Y
+}
+function toISO(dmy) {
+  if (!dmy) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dmy)) return dmy;
+  const m = String(dmy).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
 }
 
 /* ----------------------------- Retrieval ----------------------------- */
