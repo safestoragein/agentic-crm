@@ -155,24 +155,24 @@ export default function QuoteTable({ rows, getBooking, getLife, onQuickFollowUp 
                 <td className="whitespace-nowrap px-4 py-3 text-[11px] text-slate-400">{fmtDateTime(q.createdAt)}</td>
                 <td className="px-4 py-3"><MiniLifecycle life={life} /></td>
                 <td className="px-3 py-3">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     {onQuickFollowUp && (
                       <button
                         type="button"
                         onClick={() => onQuickFollowUp(q)}
                         title="Add / update follow-up note"
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.follow}`}
+                        className={`flex h-10 w-10 items-center justify-center rounded-lg border ${IB.follow}`}
                       >
-                        <CalendarClock className="h-4 w-4" />
+                        <CalendarClock className="h-5 w-5" />
                       </button>
                     )}
                     {q.contact && (
                       <>
-                        <a href={`tel:+91${q.contact}`} title="Call" className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.call}`}><Phone className="h-4 w-4" /></a>
-                        <a href={`https://wa.me/91${q.contact}`} target="_blank" rel="noreferrer" title="WhatsApp" className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.whatsapp}`}><MessageCircle className="h-4 w-4" /></a>
+                        <a href={`tel:+91${q.contact}`} title="Call" className={`flex h-10 w-10 items-center justify-center rounded-lg border ${IB.call}`}><Phone className="h-5 w-5" /></a>
+                        <a href={`https://wa.me/91${q.contact}`} target="_blank" rel="noreferrer" title="WhatsApp" className={`flex h-10 w-10 items-center justify-center rounded-lg border ${IB.whatsapp}`}><MessageCircle className="h-5 w-5" /></a>
                       </>
                     )}
-                    <a href={appHref(`/customer/${q.id}`)} title="View" className={`flex h-8 w-8 items-center justify-center rounded-lg border ${IB.view}`}><Eye className="h-4 w-4" /></a>
+                    <a href={appHref(`/customer/${q.id}`)} title="View" className={`flex h-10 w-10 items-center justify-center rounded-lg border ${IB.view}`}><Eye className="h-5 w-5" /></a>
                   </div>
                 </td>
               </tr>

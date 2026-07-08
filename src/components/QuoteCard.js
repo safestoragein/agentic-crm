@@ -193,29 +193,29 @@ export default function QuoteCard({ q, esc, score, email, otp, booking, life, wh
             </button>
             <WarehouseStatus wh={wh} />
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {/* Quick follow-up — always available (status + date + note). */}
             {onQuickFollowUp && (
               <button
                 onClick={onQuickFollowUp}
                 title="Add follow-up"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-600 transition-colors hover:bg-amber-100"
               >
-                <CalendarClock className="h-4 w-4" />
+                <CalendarClock className="h-5 w-5" />
               </button>
             )}
             {/* Log activity — only for customers that were actually called
                 (have follow_up_start_time AND follow_up_end_time). */}
             {q.hasCallTimes && (
               <IconBtn title="Log activity" tone="view" onClick={onLogActivity}>
-                <ClipboardList className="h-4 w-4" />
+                <ClipboardList className="h-5 w-5" />
               </IconBtn>
             )}
-            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view"><Eye className="h-4 w-4" /></IconBtn>
+            <IconBtn href={appHref(`/customer/${q.id}`)} title="View details" tone="view"><Eye className="h-5 w-5" /></IconBtn>
             {q.contact && (
               <>
-                <IconBtn href={`tel:+91${q.contact}`} title="Call" tone="call"><Phone className="h-4 w-4" /></IconBtn>
-                <IconBtn href={`https://wa.me/91${q.contact}`} title="WhatsApp" tone="whatsapp" external><MessageCircle className="h-4 w-4" /></IconBtn>
+                <IconBtn href={`tel:+91${q.contact}`} title="Call" tone="call"><Phone className="h-5 w-5" /></IconBtn>
+                <IconBtn href={`https://wa.me/91${q.contact}`} title="WhatsApp" tone="whatsapp" external><MessageCircle className="h-5 w-5" /></IconBtn>
               </>
             )}
           </div>
@@ -585,7 +585,7 @@ function IconBtn({ href, title, external, tone, onClick, children }) {
     view: "border-indigo-200 bg-indigo-50 text-indigo-600 hover:border-indigo-300 hover:bg-indigo-100",
   };
   const cls = tones[tone] || "border-slate-200 text-slate-500 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600";
-  const className = `flex h-9 w-9 items-center justify-center rounded-lg border transition-colors ${cls}`;
+  const className = `flex h-11 w-11 items-center justify-center rounded-lg border transition-colors ${cls}`;
 
   // Render a real button for in-app actions (no navigation target).
   if (!href) {
