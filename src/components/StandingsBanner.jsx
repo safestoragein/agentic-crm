@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Trophy, GripVertical } from "lucide-react";
-import { fetchLeaderboard } from "@/lib/crm";
+import { fetchLeaderboard, fetchTeamBookings } from "@/lib/crm";
 import { getSession } from "@/lib/auth";
 
 // An always-on standings panel filling the right column of every tab. Shows this
@@ -13,6 +13,10 @@ import { getSession } from "@/lib/auth";
 
 const medals = ["🥇", "🥈", "🥉"];
 const firstName = (n) => String(n || "").trim().split(/\s+/)[0] || "—";
+const DAILY_TARGET = 5; // bookings per rep per day
+const pad2 = (n) => String(n).padStart(2, "0");
+const todayYmd = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const dOnly = (s) => String(s || "").slice(0, 10);
 const WIDTH_KEY = "standings_width";
 // Min width is set so the widest column (medal + first name + booking count) stays
 // legible — reps can shrink it, but only until names still show clearly.
@@ -24,6 +28,7 @@ const clampW = (w) => Math.max(MIN_W, Math.min(MAX_W, w));
 export default function StandingsBanner() {
   const [list, setList] = useState(null);
   const [me, setMe] = useState(null);
+  const [todayCount, setTodayCount] = useState(null);
   const [width, setWidth] = useState(DEFAULT_W);
   const widthRef = useRef(DEFAULT_W);
 
@@ -33,9 +38,17 @@ export default function StandingsBanner() {
       if (saved >= MIN_W && saved <= MAX_W) { setWidth(saved); widthRef.current = saved; }
     } catch { /* ignore */ }
     const s = getSession();
-    setMe(s?.user_id != null ? String(s.user_id) : null);
+    const meId = s?.user_id != null ? String(s.user_id) : null;
+    setMe(meId);
     const ctrl = new AbortController();
     fetchLeaderboard({ signal: ctrl.signal }).then(setList).catch(() => setList([]));
+    // Today's own bookings → progress toward the daily target.
+    fetchTeamBookings({ signal: ctrl.signal })
+      .then((bk) => {
+        const t = todayYmd();
+        setTodayCount(bk.filter((b) => meId && String(b.repId) === meId && dOnly(b.date) === t).length);
+      })
+      .catch(() => setTodayCount(0));
     return () => ctrl.abort();
   }, []);
 
@@ -119,7 +132,30 @@ export default function StandingsBanner() {
               })}
             </ul>
 
-            <div className="mt-auto" />
+            {/* Today's target — the daily nudge */}
+            <div className="my-auto">
+              {(() => {
+                const done = todayCount ?? 0;
+                const hit = done >= DAILY_TARGET;
+                const left = Math.max(0, DAILY_TARGET - done);
+                const pct = Math.min(100, Math.round((done / DAILY_TARGET) * 100));
+                return (
+                  <div className={`rounded-2xl border p-4 text-center shadow-sm ${hit ? "border-emerald-200 bg-emerald-50" : "border-indigo-100 bg-indigo-50/60"}`}>
+                    <p className="text-xs font-medium text-slate-500">Today&apos;s bookings</p>
+                    <p className="my-1 text-3xl font-extrabold tabular-nums text-indigo-600">
+                      {todayCount === null ? "—" : done}
+                      <span className="text-lg font-bold text-slate-400"> / {DAILY_TARGET}</span>
+                    </p>
+                    <div className="mx-auto h-2 w-full overflow-hidden rounded-full bg-white ring-1 ring-indigo-100">
+                      <div className={`h-full rounded-full ${hit ? "bg-emerald-500" : "bg-indigo-500"}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <p className={`mt-2 text-xs font-semibold ${hit ? "text-emerald-600" : "text-slate-600"}`}>
+                      {todayCount === null ? " " : hit ? "🎯 Target smashed! 🔥" : done === 0 ? "Let's get the first one! 💪" : `${left} more to hit today's target`}
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
 
             {/* Your standing */}
             <div className={`rounded-2xl p-4 text-center shadow-sm ${inTop3 ? "bg-emerald-50 ring-1 ring-emerald-200" : "bg-white ring-1 ring-slate-200"}`}>

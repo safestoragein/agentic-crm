@@ -12,6 +12,16 @@ import { logEvent } from "@/lib/activity";
 export default function AppLayout({ children }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const [navCollapsed, setNavCollapsed] = useState(false);
+
+  useEffect(() => {
+    try { setNavCollapsed(localStorage.getItem("nav_collapsed") === "1"); } catch { /* ignore */ }
+  }, []);
+  const toggleNav = () => setNavCollapsed((v) => {
+    const next = !v;
+    try { localStorage.setItem("nav_collapsed", next ? "1" : "0"); } catch { /* ignore */ }
+    return next;
+  });
 
   useEffect(() => {
     // Force a fresh login each morning: no session, or one started before today's
@@ -87,9 +97,9 @@ export default function AppLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar />
+      <Sidebar collapsed={navCollapsed} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
+        <TopBar onToggleNav={toggleNav} navCollapsed={navCollapsed} />
         <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
       </div>
       <PostCallActivity />

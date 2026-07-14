@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
-import { LogOut, RefreshCw } from "lucide-react";
+import { LogOut, RefreshCw, PanelLeft } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/adminAuth";
 import { logEvent, saveLogoutTime } from "@/lib/activity";
@@ -30,7 +30,7 @@ const TITLES = {
   "/admin/agents": "Agent-wise Stats",
 };
 
-export default function TopBar() {
+export default function TopBar({ onToggleNav, navCollapsed }) {
   const router = useRouter();
   const pathname = usePathname();
   const [session, setSession] = useState(null);
@@ -55,6 +55,14 @@ export default function TopBar() {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
       <div className="flex items-center gap-4 px-5 py-3">
+        <button
+          onClick={onToggleNav}
+          title={navCollapsed ? "Show menu" : "Hide menu"}
+          className="hidden items-center justify-center rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:bg-slate-50 lg:inline-flex"
+        >
+          <PanelLeft className="h-5 w-5" />
+        </button>
+
         <Image src="https://safestorage.in/assets/new_design_css/img/logo.png" alt="SafeStorage" width={190} height={71} className="h-7 w-auto lg:hidden" />
 
         {title && <h1 className="truncate text-lg font-bold tracking-tight text-slate-900">{title}</h1>}

@@ -60,7 +60,7 @@ const ADMIN_NAV = [
   { href: "/ai-analytics", label: "AI Analytics", icon: Sparkles },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed = false }) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState(null);
@@ -86,8 +86,11 @@ export default function Sidebar() {
   const fname = session?.user_fname || "User";
   const initials = fname.slice(0, 2).toUpperCase();
 
+  // Hidden via the TopBar toggle — content reclaims the space.
+  if (collapsed) return null;
+
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
+    <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
       {/* brand */}
       <div className="flex items-center justify-center px-5 py-6">
         <Image
