@@ -18,6 +18,7 @@ import {
   ScrollText,
   ShieldCheck,
   BarChart3,
+  Phone,
   LogOut,
 } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
@@ -40,6 +41,7 @@ const NAV = [
   { href: "/customers", label: "Manage Customers", icon: UserCog },
   { href: "/booking-report", label: "Booking Report", icon: BarChart3 },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
+  { href: "/call-analysis", label: "Call Analysis", icon: Phone },
   { href: "/logs", label: "Productivity", icon: ScrollText },
 ];
 
@@ -51,6 +53,7 @@ const ADMIN_NAV = [
   { href: "/sla", label: "SLA Board", icon: Timer },
   { href: "/rnr", label: "RNR Analytics", icon: PhoneOff },
   { href: "/whatsapp", label: "WhatsApp Engaged", icon: MessageCircle },
+  { href: "/call-analysis", label: "Call Analysis", icon: Phone },
   { href: "/ai-analytics", label: "AI Analytics", icon: Sparkles },
 ];
 
