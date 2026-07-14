@@ -16,7 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { login, persistSession, getSession } from "@/lib/auth";
-import { logEvent } from "@/lib/activity";
+import { logEvent, isMobileDevice } from "@/lib/activity";
 
 const FEATURES = [
   { icon: Users, label: "Leads & quotation pipeline" },
@@ -45,7 +45,9 @@ export default function LoginPage() {
     try {
       const session = await login(email, password);
       persistSession(session, { remember });
-      logEvent("login", session.user_email || email);
+      // Capture login timing for in-office (desktop) sign-ins only — mobile
+      // (home) logins shouldn't count toward attendance / first-call metrics.
+      if (!isMobileDevice()) logEvent("login", session.user_email || email);
       router.replace("/dashboard");
     } catch (err) {
       setError(

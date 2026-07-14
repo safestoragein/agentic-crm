@@ -726,7 +726,12 @@ export async function fetchRecentEngagement(userId, { signal } = {}) {
     ? `recent_engagement?relationship_manager_id=${encodeURIComponent(userId)}`
     : "recent_engagement";
   const res = await apiGet(path, { signal, module: "agentic_crm" });
-  const mapped = toList(res).map((r) => {
+  // Only quotation-stage customers (is_customer = 0). Once booked, a customer's
+  // mail is charge revisions / booking confirmations handled by other teams —
+  // that's not the sales rep's quote-engagement, so keep it out of these alerts.
+  const mapped = toList(res)
+    .filter((r) => String(r.is_customer) !== "1")
+    .map((r) => {
     const ev = String(r.event_type || "").toLowerCase();
     const isClick = ev.includes("clicked");
     const wh = r.email_type === "warehouse";

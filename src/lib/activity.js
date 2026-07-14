@@ -6,6 +6,18 @@ import { getSession } from "./auth";
 
 const MOD = "agentic_crm";
 
+// Reps log in from home on their phones before the workday — that isn't an
+// in-office start, so we do NOT capture login/logout timing from mobile devices
+// (it would pollute the attendance/first-call metrics). Desktop logins only.
+export function isMobileDevice() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  if (/Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile|BlackBerry|webOS/i.test(ua)) return true;
+  // iPadOS 13+ reports a desktop Mac UA, so also treat touch-Macs as mobile.
+  if (/Macintosh/.test(ua) && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 1) return true;
+  return false;
+}
+
 // Per-rep productivity summary for a day: calls / WhatsApp / customer opens +
 // active window and idle ("time wasted") minutes.
 export async function fetchActivitySummary({ date, userId, signal } = {}) {
@@ -50,6 +62,8 @@ export function snapshotAllProductivity({ date } = {}) {
 // Stamp the logged-in rep's logout time into the daily rollup at sign-out.
 export function saveLogoutTime() {
   if (typeof window === "undefined") return Promise.resolve();
+  // Don't capture session timing from mobile (home) devices — see isMobileDevice.
+  if (isMobileDevice()) return Promise.resolve();
   try {
     const s = getSession();
     if (!s?.user_id) return Promise.resolve();

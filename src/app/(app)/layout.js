@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import PostCallActivity from "@/components/PostCallActivity";
-import { getSession } from "@/lib/auth";
+import StandingsBanner from "@/components/StandingsBanner";
+import { getSession, clearSession, isSessionStale } from "@/lib/auth";
 import { logEvent } from "@/lib/activity";
 
 export default function AppLayout({ children }) {
@@ -13,11 +14,22 @@ export default function AppLayout({ children }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!getSession()) {
-      router.replace("/login");
-      return;
-    }
+    // Force a fresh login each morning: no session, or one started before today's
+    // 08:00, sends the rep back to /login. Checked on mount and every minute so an
+    // app left open overnight logs out when 8 AM passes.
+    const check = () => {
+      const s = getSession();
+      if (!s || isSessionStale(s)) {
+        clearSession();
+        router.replace("/login");
+        return false;
+      }
+      return true;
+    };
+    if (!check()) return;
     setReady(true);
+    const id = setInterval(check, 60000);
+    return () => clearInterval(id);
   }, [router]);
 
   // Proactively recover from stale-chunk errors after a deploy. A dynamic import
@@ -78,9 +90,10 @@ export default function AppLayout({ children }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="flex-1">{children}</main>
+        <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
       </div>
       <PostCallActivity />
+      <StandingsBanner />
     </div>
   );
 }

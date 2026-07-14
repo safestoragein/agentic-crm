@@ -103,3 +103,19 @@ export function clearSession() {
   removeStored(SESSION_KEY);
   removeStored(SESSION_START_KEY);
 }
+
+// Daily fresh-session cutover at 08:00 local time. The most recent 08:00 that has
+// already passed; before 8 AM that's yesterday's.
+export function morningCutoverMs(now = Date.now()) {
+  const d = new Date(now);
+  const cut = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 8, 0, 0, 0).getTime();
+  return now < cut ? cut - 86400000 : cut;
+}
+
+// A session started before today's 08:00 is stale — the rep must re-login, so
+// each workday gets a clean session and a correct in-office login time.
+export function isSessionStale(session) {
+  if (!session) return false;
+  const t = Date.parse(session.loginTime);
+  return !isNaN(t) && t < morningCutoverMs();
+}
