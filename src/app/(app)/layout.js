@@ -13,6 +13,7 @@ export default function AppLayout({ children }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     try { setNavCollapsed(localStorage.getItem("nav_collapsed") === "1"); } catch { /* ignore */ }
@@ -97,9 +98,9 @@ export default function AppLayout({ children }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar collapsed={navCollapsed} />
+      <Sidebar collapsed={navCollapsed} mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar onToggleNav={toggleNav} navCollapsed={navCollapsed} />
+        <TopBar onToggleNav={toggleNav} navCollapsed={navCollapsed} onOpenMobileNav={() => setMobileNavOpen(true)} />
         <main className="min-w-0 flex-1 overflow-x-hidden">{children}</main>
       </div>
       <PostCallActivity />

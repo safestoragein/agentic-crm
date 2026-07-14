@@ -21,6 +21,7 @@ import {
   BarChartBig,
   Phone,
   LogOut,
+  X,
 } from "lucide-react";
 import { getSession, clearSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/adminAuth";
@@ -60,7 +61,7 @@ const ADMIN_NAV = [
   { href: "/ai-analytics", label: "AI Analytics", icon: Sparkles },
 ];
 
-export default function Sidebar({ collapsed = false }) {
+export default function Sidebar({ collapsed = false, mobileOpen = false, onClose }) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState(null);
@@ -86,11 +87,8 @@ export default function Sidebar({ collapsed = false }) {
   const fname = session?.user_fname || "User";
   const initials = fname.slice(0, 2).toUpperCase();
 
-  // Hidden via the TopBar toggle — content reclaims the space.
-  if (collapsed) return null;
-
-  return (
-    <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
+  const content = (
+    <>
       {/* brand */}
       <div className="flex items-center justify-center px-5 py-6">
         <Image
@@ -114,6 +112,7 @@ export default function Sidebar({ collapsed = false }) {
             <Link
               key={href}
               href={href}
+              onClick={onClose}
               className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                 active
                   ? "bg-indigo-50 text-indigo-700"
@@ -159,6 +158,34 @@ export default function Sidebar({ collapsed = false }) {
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop rail (collapsible via the TopBar toggle) */}
+      {!collapsed && (
+        <aside className="sticky top-0 hidden h-screen w-56 shrink-0 flex-col border-r border-slate-200 bg-white lg:flex">
+          {content}
+        </aside>
+      )}
+
+      {/* Mobile slide-in drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
+          <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[85%] flex-col border-r border-slate-200 bg-white shadow-2xl">
+            <button
+              onClick={onClose}
+              title="Close menu"
+              className="absolute right-2 top-2 z-10 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {content}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
