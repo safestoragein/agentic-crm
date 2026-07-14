@@ -18,6 +18,7 @@ import {
   ScrollText,
   ShieldCheck,
   BarChart3,
+  BarChartBig,
   Phone,
   LogOut,
 } from "lucide-react";
@@ -42,6 +43,7 @@ const NAV = [
   { href: "/booking-report", label: "Booking Report", icon: BarChart3 },
   { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/call-analysis", label: "Call Analysis", icon: Phone },
+  { href: "/calls-by-hour", label: "Calls by Hour", icon: BarChartBig },
   { href: "/logs", label: "Productivity", icon: ScrollText },
 ];
 
@@ -54,6 +56,7 @@ const ADMIN_NAV = [
   { href: "/rnr", label: "RNR Analytics", icon: PhoneOff },
   { href: "/whatsapp", label: "WhatsApp Engaged", icon: MessageCircle },
   { href: "/call-analysis", label: "Call Analysis", icon: Phone },
+  { href: "/calls-by-hour", label: "Calls by Hour", icon: BarChartBig },
   { href: "/ai-analytics", label: "AI Analytics", icon: Sparkles },
 ];
 
