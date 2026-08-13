@@ -20,6 +20,8 @@ import {
   BarChart3,
   BarChartBig,
   Phone,
+  Inbox,
+  Gauge,
   LogOut,
   X,
 } from "lucide-react";
@@ -27,6 +29,8 @@ import { getSession, clearSession } from "@/lib/auth";
 import { isAdmin } from "@/lib/adminAuth";
 import { logEvent, saveLogoutTime } from "@/lib/activity";
 import { fetchNavCounts, fetchLeadsTodayCount } from "@/lib/crm";
+import { MAILBOXES } from "@/lib/mailboxes";
+import { fetchMailCounts } from "@/lib/mail";
 import { useEffect, useState } from "react";
 
 // Nav items whose red count badge is intentionally hidden. Leads / Quotations
@@ -61,17 +65,43 @@ const ADMIN_NAV = [
   { href: "/ai-analytics", label: "AI Analytics", icon: Sparkles },
 ];
 
+// Shared Outlook mailboxes (Microsoft Graph). Admin-only, same as ADMIN_NAV —
+// reps never see these. Badges show the mailbox's unread count, not a "today"
+// count, so they're excluded from the "due today" tooltip below.
+const MAIL_NAV = [
+  // Triage first — it's the "what do I do next" view; the raw mailboxes follow.
+  { href: "/mail/triage", label: "Triage board", icon: Gauge, mailboxKey: null },
+  ...MAILBOXES.map((m) => ({
+    href: `/mail/${m.key}`,
+    label: m.label,
+    icon: Inbox,
+    mailboxKey: m.key,
+  })),
+];
+
 export default function Sidebar({ collapsed = false, mobileOpen = false, onClose }) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState(null);
   // Live "today" counts shown as nav badges, keyed by href. Per logged-in rep.
   const [badges, setBadges] = useState({});
+  // Unread counts per shared mailbox, keyed by mailbox key. Admin-only.
+  const [mailCounts, setMailCounts] = useState({});
 
   useEffect(() => {
     const s = getSession();
     setSession(s);
-    if (!s || isAdmin(s)) return; // admins use the team nav (no per-rep counts)
+    if (!s) return;
+
+    // Admins get the team nav (no per-rep counts) plus shared-mailbox unreads.
+    if (isAdmin(s)) {
+      const ctrl = new AbortController();
+      fetchMailCounts({ signal: ctrl.signal })
+        .then((d) => setMailCounts(d?.counts || {}))
+        .catch(() => {}); // Graph not configured / unreachable — nav still renders
+      return () => ctrl.abort();
+    }
+
     const ctrl = new AbortController();
     // Fast bundle → quotations / follow-ups / blank / booking-report / logs.
     fetchNavCounts(s.user_id, { signal: ctrl.signal })
@@ -132,6 +162,42 @@ export default function Sidebar({ collapsed = false, mobileOpen = false, onClose
             </Link>
           );
         })}
+
+        {/* Shared Outlook mailboxes — admins only */}
+        {isAdmin(session) && (
+          <>
+            <div className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Mailboxes
+            </div>
+            {MAIL_NAV.map(({ href, label, icon: Icon, mailboxKey }) => {
+              const active = pathname === href;
+              const unread = mailCounts[mailboxKey]?.unread || 0;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={onClose}
+                  className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                    active
+                      ? "bg-indigo-50 text-indigo-700"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon className={`h-4.5 w-4.5 ${active ? "text-indigo-600" : "text-slate-400"}`} />
+                  {label}
+                  {unread > 0 && (
+                    <span
+                      title={`${unread} unread`}
+                      className="ml-auto inline-flex min-w-[1.35rem] items-center justify-center rounded-full bg-indigo-500 px-1.5 py-0.5 text-[11px] font-bold text-white shadow-sm ring-2 ring-indigo-100"
+                    >
+                      {unread > 999 ? "999+" : unread}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* user */}

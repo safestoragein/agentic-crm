@@ -19,9 +19,34 @@ CRON_SECRET=<long random string>                      # shared secret for the cr
 # Optional (defaults shown):
 # FALLBACK_FROM_EMAIL=SafeStorage <followups@safestorage.in>
 # FALLBACK_REPLY_TO=safestorage.in@gmail.com
+
+# --- Shared Outlook mailboxes (/mail, /mail/triage) ---
+MS_TENANT_ID=<Entra directory (tenant) ID>
+MS_CLIENT_ID=<Entra application (client) ID>
+MS_CLIENT_SECRET=<the client secret VALUE, not the secret ID>
+NEXT_PUBLIC_MAIL_DOMAIN=safestorage.in
 ```
 
 The `followups@safestorage.in` sending domain is already verified in Resend.
+
+**Without the three `MS_*` values every `/api/mail/*` route returns 503 and the
+Mailboxes nav stays empty** — the app still runs, mail is simply unavailable.
+`NEXT_PUBLIC_MAIL_DOMAIN` is inlined at build time, so it must be present
+*before* `npm run build`, not just before `npm run start`.
+
+Two security steps that are NOT in the code and must be done in Azure/Exchange:
+
+1. The Entra app currently holds **tenant-wide** `Mail.Read` / `Mail.ReadWrite` /
+   `Mail.Send` — it can read and send as any mailbox in the tenant. Restrict it to
+   the four shared mailboxes with an Exchange application access policy:
+   ```powershell
+   New-ApplicationAccessPolicy -AppId <MS_CLIENT_ID> -PolicyScopeGroupId CRM-Mailboxes@safestorage.in -AccessRight RestrictAccess -Description "Restrict agentic-CRM to shared mailboxes only"
+   ```
+2. Rotate `MS_CLIENT_SECRET` if it has ever been shared outside the server.
+
+Optional: `AI_GATEWAY_API_KEY` enables the AI rewrite in the triage reply coach
+(the rule-based score works without it), and `MAIL_ADMIN_EMAILS` grants `/mail`
+access to addresses that aren't `role_id` 18.
 
 ## 3. Build & run
 ```bash
